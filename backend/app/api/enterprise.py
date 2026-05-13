@@ -74,10 +74,10 @@ class LLMTestRequest(BaseModel):
     model: str
     api_key: str | None = None
     base_url: str | None = None
-    model_id: str | None = None  # existing model ID to use stored API key
+    model_id: uuid.UUID | None = None  # existing model ID to use stored API key
 
 
-async def _load_llm_test_api_key(model_id: str | None) -> str | None:
+async def _load_llm_test_api_key(model_id: uuid.UUID | None) -> str | None:
     """Load the stored API key for llm-test using a short-lived independent session."""
     if not model_id:
         return None

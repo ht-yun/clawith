@@ -153,7 +153,7 @@ async def list_posts(
     limit: int = 20,
     offset: int = 0,
     since: str | None = None,
-    tenant_id: str | None = None,
+    tenant_id: uuid.UUID | None = None,
     current_user: User = Depends(get_current_user),
 ):
     """List plaza posts, newest first. Filtered by tenant_id from JWT for data isolation.
@@ -163,7 +163,7 @@ async def list_posts(
     """
     from app.models.agent import Agent as AgentModel
     # Enforce tenant from JWT; platform_admin can optionally specify a different tenant
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     if tenant_id and current_user.role == "platform_admin":
         effective_tenant_id = tenant_id
     async with async_session() as db:
@@ -191,12 +191,12 @@ async def list_posts(
 
 @router.get("/stats")
 async def plaza_stats(
-    tenant_id: str | None = None,
+    tenant_id: uuid.UUID | None = None,
     current_user: User = Depends(get_current_user),
 ):
     """Get plaza statistics scoped by tenant_id from JWT."""
     # Enforce tenant from JWT; platform_admin can optionally specify a different tenant
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     if tenant_id and current_user.role == "platform_admin":
         effective_tenant_id = tenant_id
     async with async_session() as db:
@@ -254,7 +254,7 @@ async def create_post(body: PostCreate, current_user: User = Depends(get_current
     """Create a new plaza post. Requires authentication; tenant_id enforced from JWT."""
     if len(body.content.strip()) == 0:
         raise HTTPException(400, "Content cannot be empty")
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     async with async_session() as db:
         post = PlazaPost(
             author_id=body.author_id,
@@ -279,7 +279,7 @@ async def create_post(body: PostCreate, current_user: User = Depends(get_current
 @router.get("/posts/{post_id}", response_model=PostDetail)
 async def get_post(post_id: uuid.UUID, current_user: User = Depends(get_current_user)):
     """Get a single post with its comments. Enforces tenant isolation."""
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     async with async_session() as db:
         q = select(PlazaPost).where(PlazaPost.id == post_id)
         if effective_tenant_id and current_user.role != "platform_admin":
@@ -321,14 +321,14 @@ async def get_post(post_id: uuid.UUID, current_user: User = Depends(get_current_
 @router.delete("/posts/{post_id}")
 async def delete_post(post_id: uuid.UUID, current_user: User = Depends(get_current_user)):
     """Delete a plaza post. Admins can delete any post; authors can delete their own. Enforces tenant isolation."""
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     async with async_session() as db:
         result = await db.execute(select(PlazaPost).where(PlazaPost.id == post_id))
         post = result.scalar_one_or_none()
         if not post:
             raise HTTPException(404, "Post not found")
         if effective_tenant_id and current_user.role != "platform_admin":
-            if str(post.tenant_id) != effective_tenant_id:
+            if post.tenant_id != effective_tenant_id:
                 raise HTTPException(403, "No access to this post")
         is_admin = current_user.role in ("platform_admin", "org_admin")
         is_author = post.author_id == current_user.id
@@ -345,14 +345,14 @@ async def create_comment(post_id: uuid.UUID, body: CommentCreate, current_user: 
     """Add a comment to a post. Requires authentication; enforces tenant isolation."""
     if len(body.content.strip()) == 0:
         raise HTTPException(400, "Content cannot be empty")
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     async with async_session() as db:
         result = await db.execute(select(PlazaPost).where(PlazaPost.id == post_id))
         post = result.scalar_one_or_none()
         if not post:
             raise HTTPException(404, "Post not found")
         if effective_tenant_id and current_user.role != "platform_admin":
-            if str(post.tenant_id) != effective_tenant_id:
+            if post.tenant_id != effective_tenant_id:
                 raise HTTPException(403, "No access to this post")
 
         comment = PlazaComment(
@@ -454,14 +454,14 @@ async def create_comment(post_id: uuid.UUID, body: CommentCreate, current_user: 
 @router.post("/posts/{post_id}/like")
 async def like_post(post_id: uuid.UUID, author_id: uuid.UUID, author_type: str = "human", current_user: User = Depends(get_current_user)):
     """Like a post (toggle). Requires authentication; enforces tenant isolation."""
-    effective_tenant_id = str(current_user.tenant_id) if current_user.tenant_id else None
+    effective_tenant_id = current_user.tenant_id
     async with async_session() as db:
         result = await db.execute(select(PlazaPost).where(PlazaPost.id == post_id))
         post = result.scalar_one_or_none()
         if not post:
             raise HTTPException(404, "Post not found")
         if effective_tenant_id and current_user.role != "platform_admin":
-            if str(post.tenant_id) != effective_tenant_id:
+            if post.tenant_id != effective_tenant_id:
                 raise HTTPException(403, "No access to this post")
         existing = await db.execute(
             select(PlazaLike).where(PlazaLike.post_id == post_id, PlazaLike.author_id == author_id)

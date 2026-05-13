@@ -78,8 +78,6 @@ export default function TalentMarketModal({ open, onClose }: Props) {
         return () => window.removeEventListener('keydown', onKey);
     }, [open, onClose, pendingTemplate]);
 
-    if (!open) return null;
-
     const { data: marketplaceAgents = [] } = useQuery({
         queryKey: ['marketplace-agents'],
         queryFn: () => fetch('/api/marketplace/agents', {
@@ -87,6 +85,8 @@ export default function TalentMarketModal({ open, onClose }: Props) {
         }).then(r => r.json()),
         enabled: open && activeTab === 'market',
     });
+
+    if (!open) return null;
 
     const trimmedQuery = searchQuery.trim().toLowerCase();
     const isSearching = trimmedQuery.length > 0;

@@ -3468,7 +3468,13 @@ export default function EnterpriseSettings() {
                                                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                                                 body: JSON.stringify(testData),
                                             });
-                                            const result = await res.json();
+                                            const raw = await res.text();
+                                            let result: any;
+                                            try {
+                                                result = raw ? JSON.parse(raw) : {};
+                                            } catch {
+                                                throw new Error(raw || `HTTP ${res.status}`);
+                                            }
                                             if (result.success) {
                                                 if (btn) { btn.textContent = t('enterprise.llm.testSuccess', { latency: result.latency_ms }); btn.style.color = 'var(--success)'; }
                                                 setTimeout(() => { if (btn) { btn.textContent = origText; btn.style.color = ''; } }, 3000);
@@ -3578,7 +3584,13 @@ export default function EnterpriseSettings() {
                                                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                                                             body: JSON.stringify(testData),
                                                         });
-                                                        const result = await res.json();
+                                                        const raw = await res.text();
+                                                        let result: any;
+                                                        try {
+                                                            result = raw ? JSON.parse(raw) : {};
+                                                        } catch {
+                                                            throw new Error(raw || `HTTP ${res.status}`);
+                                                        }
                                                         if (result.success) {
                                                             if (btn) { btn.textContent = t('enterprise.llm.testSuccess', { latency: result.latency_ms }); btn.style.color = 'var(--success)'; }
                                                             setTimeout(() => { if (btn) { btn.textContent = origText; btn.style.color = ''; } }, 3000);

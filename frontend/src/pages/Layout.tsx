@@ -72,9 +72,9 @@ const fetchJson = async <T,>(url: string): Promise<T> => {
 const getAgentBadgeStatus = (agent: any): string | null => {
     if (agent.status === 'error') return 'error';
     if (agent.status === 'creating') return 'creating';
-    // OpenClaw disconnected detection: 60 min timeout
-    if (agent.agent_type === 'openclaw' && agent.status === 'running' && agent.openclaw_last_seen) {
-        const elapsed = Date.now() - new Date(agent.openclaw_last_seen).getTime();
+    // OpenCode disconnected detection: 60 min timeout
+    if (agent.agent_type === 'opencode' && agent.status === 'running' && agent.opencode_last_seen) {
+        const elapsed = Date.now() - new Date(agent.opencode_last_seen).getTime();
         if (elapsed > 60 * 60 * 1000) return 'disconnected';
     }
     // idle / running / stopped → no badge
@@ -648,8 +648,8 @@ export default function Layout() {
                     onClick={() => setAgentDrawerOpen(false)}
                 >
                     <span className="sidebar-item-icon" style={{ position: 'relative' }}>
-                        <span className={`agent-avatar${agent.agent_type === 'openclaw' ? ' openclaw' : ''}`}>{avatarChar}</span>
-                        {agent.agent_type === 'openclaw' && (
+                        <span className={`agent-avatar${agent.agent_type === 'opencode' ? ' opencode' : ''}`}>{avatarChar}</span>
+                        {agent.agent_type === 'opencode' && (
                             <span className="agent-avatar-link" style={{ display: 'flex' }}>
                                 <IconArrowUpRight size={10} stroke={2.5} />
                             </span>

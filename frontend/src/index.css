@@ -1786,13 +1786,13 @@ select:focus {
   letter-spacing: -0.02em;
 }
 
-/* OpenClaw agent — dashed border to indicate external/connected */
-.agent-avatar.openclaw {
+/* OpenCode agent — dashed border to indicate external/connected */
+.agent-avatar.opencode {
   border: 1.5px dashed var(--text-tertiary);
   background: transparent;
 }
 
-/* OpenClaw link icon — top-right of avatar */
+/* OpenCode link icon — top-right of avatar */
 .agent-avatar-link {
   position: absolute;
   top: -3px;

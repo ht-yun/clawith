@@ -4,7 +4,8 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -29,7 +30,7 @@ class AgentTrigger(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False)  # cron|once|interval|poll|on_message
-    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
     focus_ref: Mapped[str | None] = mapped_column(String(200))  # optional: related focus item identifier
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)

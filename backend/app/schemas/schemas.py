@@ -206,7 +206,7 @@ class UserUpdate(BaseModel):
 
 class AgentCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100, description="Agent name, 2-100 characters")
-    agent_type: str = "native"  # native | openclaw
+    agent_type: str = "native"  # native | opencode
     role_description: str = Field(default="", max_length=500, description="Role description, max 500 characters")
     bio: str | None = None
     welcome_message: str | None = None
@@ -277,6 +277,7 @@ class AgentOut(BaseModel):
     openclaw_last_seen: datetime | None = None
     unread_count: int = 0
     has_api_key: bool = False
+    node_count: int = 0
     api_key_hash: str | None = None
     # True when the current viewer already has an onboarding row for this
     # agent. Computed per-request by the API layer from the junction table;
@@ -588,3 +589,84 @@ class GatewaySendMessageRequest(BaseModel):
     target: str  # Name of target person or agent
     content: str = Field(min_length=1)
     channel: str | None = None  # Optional: "feishu", "agent", etc. Auto-detected if omitted.
+
+
+# ─── Agent Nodes (OpenCode multi-node management) ──────
+
+class AgentNodeCreate(BaseModel):
+    node_name: str = Field(default="", max_length=200)
+
+
+class AgentNodeOut(BaseModel):
+    id: uuid.UUID
+    agent_id: uuid.UUID
+    owner_user_id: uuid.UUID
+    owner_username: str | None = None
+    node_name: str
+    status: str
+    last_seen: datetime | None = None
+    version: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    # Only included on creation
+    api_key: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Organization ───────────────────────────────────────
+
+class OrgDepartmentCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    parent_id: uuid.UUID | None = None
+    external_id: str | None = None
+
+class OrgDepartmentUpdate(BaseModel):
+    name: str | None = None
+    parent_id: uuid.UUID | None = None
+    status: str | None = None
+
+class OrgDepartmentOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    parent_id: uuid.UUID | None = None
+    path: str
+    member_count: int
+    status: str
+    tenant_id: uuid.UUID | None = None
+    synced_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class OrgMemberCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str | None = None
+    phone: str | None = None
+    title: str = ""
+    department_id: uuid.UUID | None = None
+    avatar_url: str | None = None
+
+class OrgMemberUpdate(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    title: str | None = None
+    department_id: uuid.UUID | None = None
+    avatar_url: str | None = None
+    status: str | None = None
+
+class OrgMemberOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    email: str | None = None
+    phone: str | None = None
+    title: str
+    department_id: uuid.UUID | None = None
+    department_path: str
+    avatar_url: str | None = None
+    status: str
+    tenant_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
+    synced_at: datetime
+
+    model_config = {"from_attributes": True}

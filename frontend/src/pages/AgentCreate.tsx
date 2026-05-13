@@ -7,7 +7,7 @@ import { agentApi, channelApi, enterpriseApi, skillApi, tenantApi } from '../ser
 import ChannelConfig from '../components/ChannelConfig';
 import LinearCopyButton from '../components/LinearCopyButton';
 const STEPS = ['basicInfo', 'personality', 'skills', 'permissions', 'channel'] as const;
-const OPENCLAW_STEPS = ['basicInfo', 'permissions'] as const;
+const OPENCODE_STEPS = ['basicInfo', 'permissions'] as const;
 
 export default function AgentCreate() {
     const { t } = useTranslation();
@@ -17,9 +17,9 @@ export default function AgentCreate() {
     const [step, setStep] = useState(0);
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const [agentType, setAgentType] = useState<'native' | 'openclaw'>(() => {
+    const [agentType, setAgentType] = useState<'native' | 'opencode'>(() => {
         const params = new URLSearchParams(location.search);
-        return params.get('type') === 'openclaw' ? 'openclaw' : 'native';
+        return params.get('type') === 'opencode' ? 'opencode' : 'native';
     });
     // Clear field error when user edits a field
     const clearFieldError = (field: string) => setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
@@ -106,9 +106,7 @@ export default function AgentCreate() {
                     });
                 } catch (err) {
                     console.error('Failed to bind Feishu channel:', err);
-                    setError(
-                        'Failed to bind the Feishu channel. Please verify the Feishu configuration on the agent settings page and try again.'
-                    );
+                    setError(t('wizard.channelBindError.feishu', '飞书渠道绑定失败，请在数字员工设置页面重新配置。'));
                 }
             }
 
@@ -122,9 +120,7 @@ export default function AgentCreate() {
                     });
                 } catch (err) {
                     console.error('Failed to bind Slack channel:', err);
-                    setError(
-                        'Failed to bind the Slack channel. Please verify the Slack configuration on the agent settings page and try again.'
-                    );
+                    setError(t('wizard.channelBindError.slack', 'Slack 渠道绑定失败，请在数字员工设置页面重新配置。'));
                 }
             }
 
@@ -139,9 +135,7 @@ export default function AgentCreate() {
                     });
                 } catch (err) {
                     console.error('Failed to bind Discord channel:', err);
-                    setError(
-                        'Failed to bind the Discord channel. Please verify the Discord configuration on the agent settings page and try again.'
-                    );
+                    setError(t('wizard.channelBindError.discord', 'Discord 渠道绑定失败，请在数字员工设置页面重新配置。'));
                 }
             }
 
@@ -161,9 +155,7 @@ export default function AgentCreate() {
                     });
                 } catch (err) {
                     console.error('Failed to bind WeCom channel:', err);
-                    setError(
-                        'Failed to bind the WeCom channel. Please verify the WeCom configuration on the agent settings page and try again.'
-                    );
+                    setError(t('wizard.channelBindError.wecom', '企业微信渠道绑定失败，请在数字员工设置页面重新配置。'));
                 }
             }
 
@@ -211,7 +203,7 @@ export default function AgentCreate() {
 
     const handleFinish = () => {
         setError('');
-        if (step === 0 || agentType === 'openclaw') {
+        if (step === 0 || agentType === 'opencode') {
             if (!validateStep0()) return;
         }
         createMutation.mutate({
@@ -232,32 +224,32 @@ export default function AgentCreate() {
     };
 
     const selectedModel = models.find((m: any) => m.id === form.primary_model_id);
-    const activeSteps = agentType === 'openclaw' ? OPENCLAW_STEPS : STEPS;
+    const activeSteps = agentType === 'opencode' ? OPENCODE_STEPS : STEPS;
 
-    // If OpenClaw agent just created, show success page with API key
+    // If OpenCode agent just created, show success page with API key
     if (createdApiKey && createMutation.data) {
         const agent = createMutation.data;
         return (
             <div>
                 <div className="page-header">
-                    <h1 className="page-title">{t('openclaw.created', 'OpenClaw Agent Created')}</h1>
+                    <h1 className="page-title">{t('opencode.created', 'OpenCode Agent Created')}</h1>
                 </div>
                 <div className="card" style={{ maxWidth: '640px' }}>
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
                         <div style={{ fontSize: '32px', marginBottom: '12px' }}>&#x2713;</div>
                         <h3 style={{ fontWeight: 600, marginBottom: '8px' }}>{agent.name}</h3>
                         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                            {t('openclaw.createdDesc2', 'Your OpenClaw agent has been registered. Copy the instruction below and send it to your OpenClaw agent to complete the setup.')}
+                            {t('opencode.createdDesc2', 'Your OpenCode agent has been registered. Copy the instruction below and send it to your OpenCode agent to complete the setup.')}
                         </p>
                     </div>
 
-                    {/* Setup Instruction — single block to send to OpenClaw */}
+                    {/* Setup Instruction — single block to send to OpenCode */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
-                            {t('openclaw.setupInstruction', 'Setup Instruction')}
+                            {t('opencode.setupInstruction', 'Setup Instruction')}
                         </label>
                         <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '8px' }}>
-                            {t('openclaw.setupInstructionDesc', 'Copy and send this to your OpenClaw agent. It will configure itself automatically.')}
+                            {t('opencode.setupInstructionDesc', 'Copy and send this to your OpenCode agent. It will configure itself automatically.')}
                         </p>
                         <div style={{ position: 'relative' }}>
                             <pre style={{
@@ -348,13 +340,13 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
                                 />
                             </div>
                             <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '6px' }}>
-                                {t('openclaw.keyNote', 'This key is already embedded in the instruction above. Save it separately if needed for manual configuration.')}
+                                {t('opencode.keyNote', 'This key is already embedded in the instruction above. Save it separately if needed for manual configuration.')}
                             </p>
                         </div>
                     </details>
 
                     <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => navigate(`/agents/${agent.id}`)}>
-                        {t('openclaw.goToAgent', 'Go to Agent Page')}
+                        {t('opencode.goToAgent', 'Go to Agent Page')}
                     </button>
                 </div>
             </div>
@@ -372,15 +364,15 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
                     background: agentType === 'native' ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
                 }}
             >
-                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{t('openclaw.nativeTitle', 'Platform Hosted')}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('openclaw.nativeDesc', 'Full agent running on Clawith platform')}</div>
+                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{t('opencode.nativeTitle', 'Platform Hosted')}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('opencode.nativeDesc', 'Full agent running on OpenCode platform')}</div>
             </div>
             <div
-                onClick={() => { setAgentType('openclaw'); setStep(0); }}
+                onClick={() => { setAgentType('opencode'); setStep(0); }}
                 style={{
                     padding: '16px', borderRadius: '8px', cursor: 'pointer', position: 'relative',
-                    border: `1.5px solid ${agentType === 'openclaw' ? 'var(--accent-primary)' : 'var(--border-default)'}`,
-                    background: agentType === 'openclaw' ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                    border: `1.5px solid ${agentType === 'opencode' ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                    background: agentType === 'opencode' ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
                 }}
             >
                 <span style={{
@@ -389,14 +381,14 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
                     background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600,
                     letterSpacing: '0.5px',
                 }}>Lab</span>
-                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{t('openclaw.openclawTitle', 'Link OpenClaw')}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('openclaw.openclawDesc', 'Connect your existing OpenClaw agent')}</div>
+                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{t('opencode.opencodeTitle', 'Link OpenCode')}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{t('opencode.opencodeDesc', 'Connect your existing OpenCode agent')}</div>
             </div>
         </div>
     );
 
-    // ── OpenClaw mode: completely separate page ──
-    if (agentType === 'openclaw') {
+    // ── OpenCode mode: completely separate page ──
+    if (agentType === 'opencode') {
         return (
             <div>
                 <div className="page-header">
@@ -413,28 +405,28 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
 
                 <div className="card" style={{ maxWidth: '640px' }}>
                     <h3 style={{ marginBottom: '6px', fontWeight: 600, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {t('openclaw.basicTitle', 'Link OpenClaw Agent')}
+                        {t('opencode.basicTitle', 'Link OpenCode Agent')}
                         <span style={{
                             fontSize: '10px', padding: '2px 6px', borderRadius: '4px',
                             background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600,
                         }}>Lab</span>
                     </h3>
                     <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                        {t('openclaw.basicDesc', 'Give your OpenClaw agent a name and description. The LLM model, personality, and skills are configured on your OpenClaw instance.')}
+                        {t('opencode.basicDesc', 'Give your OpenCode agent a name and description. The LLM model, personality, and skills are configured on your OpenCode instance.')}
                     </p>
 
                     <div className="form-group">
                         <label className="form-label">{t('agent.fields.name')} *</label>
                         <input className={`form-input${fieldErrors.name ? ' input-error' : ''}`} value={form.name}
                             onChange={(e) => { setForm({ ...form, name: e.target.value }); clearFieldError('name'); }}
-                            placeholder={t('openclaw.namePlaceholder', 'e.g. My OpenClaw Bot')} autoFocus />
+                            placeholder={t('opencode.namePlaceholder', 'e.g. My OpenCode Bot')} autoFocus />
                         {fieldErrors.name && <div style={{ color: 'var(--error)', fontSize: '12px', marginTop: '4px' }}>{fieldErrors.name}</div>}
                     </div>
                     <div className="form-group">
                         <label className="form-label">{t('agent.fields.role')}</label>
                         <input className={`form-input${fieldErrors.role_description ? ' input-error' : ''}`} value={form.role_description}
                             onChange={(e) => { setForm({ ...form, role_description: e.target.value }); clearFieldError('role_description'); }}
-                            placeholder={t('openclaw.rolePlaceholder', 'e.g. Personal assistant running on my Mac')} />
+                            placeholder={t('opencode.rolePlaceholder', 'e.g. Personal assistant running on my Mac')} />
                         {fieldErrors.role_description && <div style={{ color: 'var(--error)', fontSize: '12px', marginTop: '4px' }}>{fieldErrors.role_description}</div>}
                     </div>
 
@@ -463,12 +455,41 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
                         </div>
                     </div>
 
+                    {/* Access Level — only for company scope (OpenCode mode) */}
+                    {form.permission_scope_type === 'company' && (
+                        <div className="form-group" style={{ marginTop: '8px' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
+                                {t('wizard.step4.accessLevel', '默认访问级别')}
+                            </label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {[
+                                    { value: 'use', label: t('wizard.step4.useLevel', '使用'), desc: t('wizard.step4.useDesc', '可使用任务、聊天、工具、技能、工作区') },
+                                    { value: 'manage', label: t('wizard.step4.manageLevel', '管理'), desc: t('wizard.step4.manageDesc', '完全访问权限，包括设置、心智、关系') },
+                                ].map((lvl) => (
+                                    <label key={lvl.value} style={{
+                                        flex: 1, display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px',
+                                        background: form.permission_access_level === lvl.value ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                                        border: `1px solid ${form.permission_access_level === lvl.value ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                                        borderRadius: '8px', cursor: 'pointer',
+                                    }}>
+                                        <input type="radio" name="oc_access_level" checked={form.permission_access_level === lvl.value}
+                                            onChange={() => setForm({ ...form, permission_access_level: lvl.value })} style={{ marginTop: '2px' }} />
+                                        <div>
+                                            <div style={{ fontWeight: 500, fontSize: '13px' }}>{lvl.label}</div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{lvl.desc}</div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
                         <button className="btn btn-secondary" onClick={() => navigate('/')}>{t('common.cancel')}</button>
                         <button className="btn btn-primary" onClick={handleFinish}
                             disabled={createMutation.isPending}>
-                            {createMutation.isPending ? t('common.loading') : t('openclaw.createBtn', 'Link Agent')}
+                            {createMutation.isPending ? t('common.loading') : t('opencode.createBtn', 'Link Agent')}
                         </button>
                     </div>
                 </div>
@@ -556,6 +577,45 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
                             )}
                         </div>
 
+                        {/* Fallback Model Selection */}
+                        {models.filter((m: any) => m.enabled).length > 1 && (
+                            <div className="form-group">
+                                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {t('wizard.step1.fallbackModel', '备用模型')}
+                                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+                                        {t('wizard.step1.fallbackModelHint', '（主模型不可用时自动切换）')}
+                                    </span>
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{
+                                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+                                        background: !form.fallback_model_id ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                                        border: `1px solid ${!form.fallback_model_id ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                                        borderRadius: '8px', cursor: 'pointer',
+                                    }}>
+                                        <input type="radio" name="fallback_model" checked={!form.fallback_model_id}
+                                            onChange={() => setForm({ ...form, fallback_model_id: '' })} />
+                                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>{t('agent.settings.noFallback', '无备用模型')}</div>
+                                    </label>
+                                    {models.filter((m: any) => m.enabled && m.id !== form.primary_model_id).map((m: any) => (
+                                        <label key={m.id} style={{
+                                            display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+                                            background: form.fallback_model_id === m.id ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                                            border: `1px solid ${form.fallback_model_id === m.id ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                                            borderRadius: '8px', cursor: 'pointer',
+                                        }}>
+                                            <input type="radio" name="fallback_model" checked={form.fallback_model_id === m.id}
+                                                onChange={() => setForm({ ...form, fallback_model_id: m.id })} />
+                                            <div>
+                                                <div style={{ fontWeight: 500, fontSize: '13px' }}>{m.label}</div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{m.provider}/{m.model}</div>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Token limits */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                             <div className="form-group">
@@ -640,7 +700,7 @@ For humans, the message is delivered via their available channel (e.g. Feishu).`
                             })}
                             {globalSkills.length === 0 && (
                                 <div style={{ padding: '16px', background: 'var(--bg-elevated)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-                                    No skills available. Add skills in Company Settings.
+                                    {t('wizard.step3.noSkills')}
                                 </div>
                             )}
                         </div>

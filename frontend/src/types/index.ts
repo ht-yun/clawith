@@ -44,8 +44,8 @@ export interface Agent {
     last_heartbeat_at?: string;
     timezone?: string;
     context_window_size?: number;
-    agent_type?: 'native' | 'openclaw';
-    openclaw_last_seen?: string;
+    agent_type?: 'native' | 'opencode';
+    opencode_last_seen?: string;
     unread_count?: number;
     // True when the viewing user has already been onboarded to this agent.
     // Defaults to true on list endpoints that don't compute per-viewer state.

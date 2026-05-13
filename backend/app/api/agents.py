@@ -148,6 +148,9 @@ async def _build_unread_count_by_agent(
 def _serialize_agent_out(agent: Agent, unread_count: int = 0) -> AgentOut:
     payload = AgentOut.model_validate(agent).model_dump()
     payload["unread_count"] = unread_count
+    # Compute node_count from loaded nodes relationship (if applicable)
+    nodes = getattr(agent, "nodes", None)
+    payload["node_count"] = len(nodes) if nodes else 0
     return AgentOut.model_validate(payload)
 
 
@@ -310,7 +313,7 @@ async def create_agent(
         max_tokens_per_day=data.max_tokens_per_day,
         max_tokens_per_month=data.max_tokens_per_month,
         template_id=data.template_id,
-        status="creating" if data.agent_type != "openclaw" else "idle",
+        status="creating" if data.agent_type != "opencode" else "idle",
         expires_at=expires_at,
         max_llm_calls_per_day=max_llm_calls,
         max_triggers=default_max_triggers,
@@ -348,10 +351,19 @@ async def create_agent(
 
     await db.flush()
 
-    # For OpenClaw agents: skip file system and container setup, generate API key
-    if agent.agent_type == "openclaw":
-        raw_key = f"oc-{secrets.token_urlsafe(32)}"
-        agent.api_key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    # For OpenCode agents: skip file system and container setup, create default AgentNode
+    if agent.agent_type == "opencode":
+        raw_key = f"code-{secrets.token_urlsafe(32)}"
+        from app.models.agent_node import AgentNode
+        node = AgentNode(
+            agent_id=agent.id,
+            owner_user_id=current_user.id,
+            tenant_id=agent.tenant_id,
+            node_name="Default",
+            api_key_hash=hashlib.sha256(raw_key.encode()).hexdigest(),
+            status="idle",
+        )
+        db.add(node)
         agent.status = "idle"
         await db.commit()
 
@@ -390,6 +402,7 @@ async def create_agent(
     # so the agent has no idea those MCP-backed skills exist and silently
     # falls back to web search.
     template_skill_ids: set = set()
+    tpl = None  # will be set below if a template was selected
     if data.template_id:
         tpl_r = await db.execute(
             select(AgentTemplate).where(AgentTemplate.id == data.template_id)
@@ -401,6 +414,7 @@ async def create_agent(
                 select(Skill).where(Skill.folder_name.in_(folder_names))
             )
             template_skill_ids = {s.id for s in tpl_skills_r.scalars().all()}
+
 
     # Merge user-selected + global default + template-default skill IDs
     all_skill_ids = set(data.skill_ids or []) | default_ids | template_skill_ids
@@ -757,6 +771,7 @@ async def delete_agent(
         "agent_permissions",
         "agent_tools",
         "agent_relationships",
+        "agent_nodes",
         "gateway_messages",
         "published_pages",
         "notifications",
@@ -914,7 +929,7 @@ async def resolve_agent_approval(
     }
 
 
-# ─── OpenClaw API Key Management ────────────────────────
+# ─── OpenCode API Key Management ────────────────────────
 
 
 @router.post("/{agent_id}/api-key")
@@ -923,15 +938,33 @@ async def generate_or_reset_api_key(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate or regenerate API key for an OpenClaw agent."""
+    """Generate or regenerate API key for an OpenCode agent (legacy — operates on default node)."""
     agent, _access = await check_agent_access(db, current_user, agent_id)
     if not is_agent_creator(current_user, agent) and current_user.role not in ("platform_admin", "org_admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only creator or admin can manage API keys")
-    if getattr(agent, "agent_type", "native") != "openclaw":
-        raise HTTPException(status_code=400, detail="API keys are only available for OpenClaw agents")
+    if getattr(agent, "agent_type", "native") != "opencode":
+        raise HTTPException(status_code=400, detail="API keys are only available for OpenCode agents")
 
-    raw_key = f"oc-{secrets.token_urlsafe(32)}"
-    agent.api_key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    raw_key = f"code-{secrets.token_urlsafe(32)}"
+    from app.models.agent_node import AgentNode
+
+    # Try to find existing first node, or create one
+    result = await db.execute(
+        select(AgentNode).where(AgentNode.agent_id == agent.id).order_by(AgentNode.created_at.asc()).limit(1)
+    )
+    node = result.scalar_one_or_none()
+    if node:
+        node.api_key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    else:
+        node = AgentNode(
+            agent_id=agent.id,
+            owner_user_id=agent.creator_id,
+            tenant_id=agent.tenant_id,
+            node_name="Default",
+            api_key_hash=hashlib.sha256(raw_key.encode()).hexdigest(),
+            status="idle",
+        )
+        db.add(node)
     await db.commit()
 
     return {"api_key": raw_key, "message": "Key configured successfully."}
@@ -943,7 +976,7 @@ async def list_gateway_messages(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List recent gateway messages for an OpenClaw agent."""
+    """List recent gateway messages for an OpenCode agent."""
     agent, _access = await check_agent_access(db, current_user, agent_id)
 
     from app.models.gateway_message import GatewayMessage

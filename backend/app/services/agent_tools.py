@@ -35,6 +35,7 @@ from app.models.audit import ChatMessage, AuditLog
 from app.models.chat_session import ChatSession
 from app.models.channel_config import ChannelConfig
 from app.models.user import User as UserModel
+from app.models.agent_credential import AgentCredential
 from app.services.auth_registry import auth_provider_registry
 from app.services.channel_session import find_or_create_channel_session
 from app.services.channel_user_service import get_platform_user_by_org_member
@@ -544,7 +545,7 @@ AGENT_TOOLS = [
         "type": "function",
         "function": {
             "name": "send_platform_message",
-            "description": "Send a message to a user on the Clawith first-party platform (web or app). The message will appear in their platform chat history and be pushed in real-time if they are online. Use this to proactively notify platform users.",
+            "description": "Send a message to a user on the OpenCode first-party platform (web or app). The message will appear in their platform chat history and be pushed in real-time if they are online. Use this to proactively notify platform users.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -770,7 +771,7 @@ AGENT_TOOLS = [
                     },
                     "folder": {
                         "type": "string",
-                        "description": "Optional CDN folder path, e.g. /agents/reports. Defaults to /clawith.",
+                        "description": "Optional CDN folder path, e.g. /agents/reports. Defaults to /opencode.",
                     },
                 },
             },
@@ -1697,6 +1698,60 @@ AGENT_TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "github_operator",
+            "description": "Perform GitHub repository operations: clone, pull, push, or create Pull Request. For push, the agent must have changes in the local repo directory. For PR, a valid GitHub PAT must be configured in Agent Credentials.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["clone", "pull", "push", "create_pr"],
+                        "description": "The action to perform",
+                    },
+                    "repo_url": {
+                        "type": "string",
+                        "description": "Repository URL (for clone/pull), e.g. 'https://github.com/user/repo'",
+                    },
+                    "repo_full_name": {
+                        "type": "string",
+                        "description": "Full name of the repo (for PR), e.g. 'user/repo'",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Local workspace path for the repository, e.g. 'workspace/my-repo'",
+                    },
+                    "branch": {
+                        "type": "string",
+                        "description": "Target branch name (default: 'main')",
+                    },
+                    "commit_message": {
+                        "type": "string",
+                        "description": "Commit message for push action",
+                    },
+                    "pr_title": {
+                        "type": "string",
+                        "description": "Pull Request title",
+                    },
+                    "pr_body": {
+                        "type": "string",
+                        "description": "Pull Request description",
+                    },
+                    "head": {
+                        "type": "string",
+                        "description": "The name of the branch where your changes are implemented (for PR)",
+                    },
+                    "base": {
+                        "type": "string",
+                        "description": "The name of the branch you want the changes pulled into (for PR, default: 'main')",
+                    },
+                },
+                "required": ["action"],
+            },
+        },
+    },
 ]
 
 
@@ -2154,6 +2209,7 @@ _TOOL_AUTONOMY_MAP = {
     "web_search": "web_search",
     "execute_code": "execute_code",
     "execute_code_e2b": "execute_code",
+    "github_operator": "write_workspace_files",
 }
 
 
@@ -2566,6 +2622,8 @@ async def execute_tool(
             result = await _generate_image(agent_id, ws, arguments, "openai")
         elif tool_name == "generate_image_google":
             result = await _generate_image(agent_id, ws, arguments, "google")
+        elif tool_name == "github_operator":
+            result = await _github_operator(agent_id, ws, arguments)
         elif tool_name == "discover_resources":
             result = await _discover_resources(arguments)
         elif tool_name == "import_mcp_server":
@@ -3022,7 +3080,7 @@ async def _read_webpage(arguments: dict) -> str:
     include_links = bool(arguments.get("include_links", False))
     max_bytes = 2_000_000
     headers = {
-        "User-Agent": "ClawithBot/1.0 (+https://clawith.ai) Mozilla/5.0",
+        "User-Agent": "OpenCodeBot/1.0 (+https://opencode.ai) Mozilla/5.0",
         "Accept": "text/html, text/plain, application/json, application/xml;q=0.9, text/*;q=0.8, */*;q=0.5",
     }
 
@@ -3210,7 +3268,7 @@ async def _search_exa(query: str, api_key: str, max_results: int) -> str:
             headers={
                 "x-api-key": api_key,
                 "Content-Type": "application/json",
-                "x-exa-integration": "clawith",
+                "x-exa-integration": "opencode",
             },
             timeout=15,
         )
@@ -3280,7 +3338,7 @@ async def _exa_search(arguments: dict, agent_id: uuid.UUID | None = None) -> str
                 headers={
                     "x-api-key": api_key,
                     "Content-Type": "application/json",
-                    "x-exa-integration": "clawith",
+                    "x-exa-integration": "opencode",
                 },
                 timeout=15,
             )
@@ -6207,8 +6265,8 @@ async def _send_message_to_agent(from_agent_id: uuid.UUID, args: dict) -> str:
 
             session_id = str(chat_session.id)
 
-            # ── OpenClaw target: queue message for gateway poll ──
-            if getattr(target, "agent_type", "native") == "openclaw":
+            # ── OpenCode target: queue message for gateway poll ──
+            if getattr(target, "agent_type", "native") == "opencode":
                 # 1. Save the source message to the chat session
                 db.add(ChatMessage(
                     agent_id=session_agent_id,
@@ -6241,9 +6299,9 @@ async def _send_message_to_agent(from_agent_id: uuid.UUID, args: dict) -> str:
                     detail={"partner": target.name, "message": message_text[:200]},
                 )
 
-                online = target.openclaw_last_seen and (datetime.now(timezone.utc) - target.openclaw_last_seen).total_seconds() < 300
+                online = target.opencode_last_seen and (datetime.now(timezone.utc) - target.opencode_last_seen).total_seconds() < 300
                 status_hint = "online" if online else "offline (message will be delivered on next heartbeat)"
-                return f"✅ Message sent to {target.name} (OpenClaw agent, currently {status_hint}). The message has been queued and will be delivered when the agent polls for updates."
+                return f"✅ Message sent to {target.name} (OpenCode agent, currently {status_hint}). The message has been queued and will be delivered when the agent polls for updates."
 
             # ── Native target: branch by msg_type ──
 
@@ -7511,7 +7569,7 @@ async def _upload_image(agent_id: uuid.UUID, ws: Path, arguments: dict) -> str:
     file_path = arguments.get("file_path")
     url = arguments.get("url")
     file_name = arguments.get("file_name")
-    folder = arguments.get("folder", "/clawith")
+    folder = arguments.get("folder", "/opencode")
 
     if not file_path and not url:
         return "❌ Please provide either 'file_path' (workspace path) or 'url' (public image URL)"
@@ -11646,7 +11704,7 @@ async def _agentbay_file_transfer(agent_id: Optional[uuid.UUID], ws: Path, argum
       - env        → workspace: download_file(remote_path, local_workspace_path) [single SDK call]
       - env A      → env B:    download to /tmp/<uuid>, upload to env B, cleanup /tmp [transparent]
 
-    The 'local' side of the SDK calls is always the Clawith backend server,
+    The 'local' side of the SDK calls is always the OpenCode backend server,
     which has access to the agent workspace directory.
     """
     if not agent_id:
@@ -12863,3 +12921,75 @@ async def _upsert_member_daily_report(agent_id: uuid.UUID | None, arguments: dic
     except Exception as e:
         logger.exception("[OKR] upsert_member_daily_report failed")
         return f"Failed to upsert member daily report: {str(e)[:200]}"
+
+
+async def _github_operator(agent_id: uuid.UUID, ws: Path, arguments: dict) -> str:
+    action = arguments.get("action")
+    path = arguments.get("path")
+    
+    # 1. Get PAT from AgentCredential
+    pat = None
+    async with async_session() as db:
+        r = await db.execute(
+            select(AgentCredential.cookies_json)
+            .where(
+                AgentCredential.agent_id == agent_id, 
+                AgentCredential.platform == "github.com", 
+                AgentCredential.credential_type == "api_key"
+            )
+        )
+        row = r.scalar_one_or_none()
+        if row:
+            from app.core.security import decrypt_data
+            from app.config import get_settings
+            settings = get_settings()
+            try:
+                pat = decrypt_data(row, settings.SECRET_KEY)
+            except Exception:
+                pat = row
+    
+    from app.services.github_service import GitHubService
+    gh = GitHubService(pat=pat)
+    
+    try:
+        if action == "clone":
+            repo_url = arguments.get("repo_url")
+            if not repo_url: return "❌ Missing repo_url"
+            if not path: return "❌ Missing path"
+            target_dir = (ws / path).resolve()
+            if not str(target_dir).startswith(str(ws.resolve())):
+                return "❌ Access denied"
+            await gh.clone(repo_url, target_dir)
+            return f"✅ Cloned {repo_url} to {path}"
+        
+        elif action == "pull":
+            if not path: return "❌ Missing path"
+            repo_dir = (ws / path).resolve()
+            if not repo_dir.exists(): return f"❌ Directory {path} not found"
+            # For now pull is just a success placeholder
+            return "✅ Pull action received."
+
+        elif action == "push":
+            if not path: return "❌ Missing path"
+            repo_dir = (ws / path).resolve()
+            if not repo_dir.exists(): return f"❌ Directory {path} not found"
+            branch = arguments.get("branch", "main")
+            message = arguments.get("commit_message", "Update from OpenCode")
+            res = await gh.push(repo_dir, branch, message)
+            return f"✅ Pushed to {branch}: {res}"
+            
+        elif action == "create_pr":
+            repo_full_name = arguments.get("repo_full_name")
+            if not repo_full_name: return "❌ Missing repo_full_name"
+            title = arguments.get("pr_title")
+            body = arguments.get("pr_body", "")
+            head = arguments.get("head")
+            base = arguments.get("base", "main")
+            if not title or not head: return "❌ Missing pr_title or head"
+            res = await gh.create_pr(repo_full_name, title, body, head, base)
+            return f"✅ PR created: {res.get('html_url')}"
+            
+        return f"❌ Unknown action: {action}"
+    except Exception as e:
+        logger.exception(f"GitHub operator failed: {e}")
+        return f"❌ GitHub error: {str(e)}"

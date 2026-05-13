@@ -1,7 +1,7 @@
 """Heartbeat service — proactive agent awareness loop.
 
 Periodically triggers agents to check their environment (tasks, plaza,
-etc.) and take autonomous actions. Inspired by OpenClaw's heartbeat
+etc.) and take autonomous actions. Inspired by OpenCode's heartbeat
 mechanism.
 
 Runs as a background task inside the FastAPI process.

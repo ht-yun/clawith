@@ -684,7 +684,7 @@ Always tell the user "I'm using web search instead of structured market data —
 
 ---
 
-## Asset Class Coverage (clawith roadmap)
+## Asset Class Coverage (opencode roadmap)
 
 | Asset class | v1 (this skill) | v2 plan |
 |---|---|---|
@@ -728,7 +728,7 @@ Use when a trading agent needs:
 
 ## Implementation Note (v1)
 
-clawith does **not** ship a dedicated calendar MCP server in v1. Smithery doesn't yet have a robust earnings/macro calendar tool. So this skill is a **structured wrapper around `web-research`** with curated query templates and source preferences. v2 will add a dedicated MCP backed by a free API (likely finnhub or trading-economics).
+opencode does **not** ship a dedicated calendar MCP server in v1. Smithery doesn't yet have a robust earnings/macro calendar tool. So this skill is a **structured wrapper around `web-research`** with curated query templates and source preferences. v2 will add a dedicated MCP backed by a free API (likely finnhub or trading-economics).
 
 This means: every calendar query in v1 takes a web round-trip. Cache results in `memory/calendar_<month>.md` so the agent doesn't re-fetch the same Fed schedule three times in one week.
 
@@ -834,7 +834,7 @@ For a weekly briefing block:
 
 ## v2 Roadmap
 
-When clawith builds a dedicated finance-calendar MCP server, this skill will switch to direct API calls:
+When opencode builds a dedicated finance-calendar MCP server, this skill will switch to direct API calls:
 
 ```
 get_earnings_calendar(start="2026-04-28", end="2026-05-02")

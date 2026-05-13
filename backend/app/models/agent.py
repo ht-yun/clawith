@@ -3,8 +3,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, JSON, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -19,7 +19,7 @@ DEFAULT_CONTEXT_WINDOW_SIZE = 100
 class Agent(Base):
     """Digital employee (Agent) instance.
 
-    agent_type: 'native' (platform-hosted) or 'openclaw' (remote OpenClaw bot).
+    agent_type: 'native' (platform-hosted) or 'opencode' (remote OpenCode bot).
     """
 
     __tablename__ = "agents"
@@ -35,12 +35,12 @@ class Agent(Base):
     creator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"))
 
-    # Agent type: 'native' (platform-hosted LLM) or 'openclaw' (remote OpenClaw bot)
+    # Agent type: 'native' (platform-hosted LLM) or 'opencode' (remote OpenCode bot)
     agent_type: Mapped[str] = mapped_column(String(20), default="native", nullable=False)
-    # API key hash for OpenClaw gateway authentication
+    # API key hash for OpenCode gateway authentication
     api_key_hash: Mapped[str | None] = mapped_column(String(128))
-    # Last time OpenClaw polled the gateway (online status indicator)
-    openclaw_last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Last time OpenCode polled the gateway (online status indicator)
+    opencode_last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Runtime
     status: Mapped[str] = mapped_column(
@@ -130,8 +130,13 @@ class Agent(Base):
 
     @property
     def has_api_key(self) -> bool:
-        """Whether this agent has an API key configured."""
-        return bool(self.api_key_hash)
+        """Whether this agent has API keys configured (via agent nodes or legacy hash)."""
+        return bool(self.api_key_hash) or bool(self.nodes)
+
+    # AgentNode relationship for multi-node OpenCode management
+    nodes: Mapped[list["AgentNode"]] = relationship(
+        "AgentNode", back_populates="agent", cascade="all, delete-orphan", lazy="selectin"
+    )
     permissions: Mapped[list["AgentPermission"]] = relationship(back_populates="agent", cascade="all, delete-orphan")
     tasks: Mapped[list["Task"]] = relationship(back_populates="agent", cascade="all, delete-orphan")
     channel_config: Mapped["ChannelConfig | None"] = relationship(back_populates="agent", uselist=False)
@@ -218,3 +223,4 @@ from app.models.task import Task  # noqa: E402, F401
 from app.models.channel_config import ChannelConfig  # noqa: E402, F401
 from app.models.user import User  # noqa: E402, F401
 from app.models.llm import LLMModel  # noqa: E402, F401
+from app.models.agent_node import AgentNode  # noqa: E402, F401

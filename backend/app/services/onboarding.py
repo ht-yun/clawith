@@ -309,7 +309,7 @@ async def resolve_onboarding_prompt(
         is_greeting_turn = False
     else:
         # First contact. Template agents get a confirmation/tuning greeting.
-        # Custom agents get the OpenClaw-inspired "define who I am" ritual.
+        # Custom agents get the OpenCode-inspired "define who I am" ritual.
         if is_template_agent:
             prompt = _render_template_greeting(agent, capability_bullets, user_name)
         elif is_founder and template_prompt:

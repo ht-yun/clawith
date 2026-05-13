@@ -63,7 +63,7 @@ async def collect_browser_layout(
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
 
-    profile_dir = tempfile.TemporaryDirectory(prefix="clawith-html-pptx-")
+    profile_dir = tempfile.TemporaryDirectory(prefix="opencode-html-pptx-")
     proc = subprocess.Popen(
         [
             chrome,
@@ -165,7 +165,7 @@ async def collect_browser_layout(
     const cs = getComputedStyle(el);
     const r = el.getBoundingClientRect();
     const itemId = `item-${Math.random().toString(36).slice(2)}-${Date.now()}`;
-    el.setAttribute('data-clawith-item-id', itemId);
+    el.setAttribute('data-opencode-item-id', itemId);
     return {
       itemId,
       kind,
@@ -277,7 +277,7 @@ roots = [body];
     }
   }
   if (!roots.length) roots = [document.body || document.documentElement];
-  roots.forEach((root, index) => root.setAttribute('data-clawith-slide-root', String(index)));
+  roots.forEach((root, index) => root.setAttribute('data-opencode-slide-root', String(index)));
   return { viewport, pageBackground: pageBg, slides: roots.map(collectRoot) };
 })()
 """
@@ -366,15 +366,15 @@ roots = [body];
                     clip_h = root_h
                     hide_expr = (
                         "(() => {"
-                        "const id='clawith-bg-capture-style';"
+                        "const id='opencode-bg-capture-style';"
                         "document.getElementById(id)?.remove();"
                         "const style=document.createElement('style');"
                         "style.id=id;"
-                        f"style.textContent='[data-clawith-slide-root=\"{idx}\"] > * {{ visibility: hidden !important; }}';"
+                        f"style.textContent='[data-opencode-slide-root=\"{idx}\"] > * {{ visibility: hidden !important; }}';"
                         "document.head.appendChild(style);"
                         "})()"
                     )
-                    restore_expr = "document.getElementById('clawith-bg-capture-style')?.remove()"
+                    restore_expr = "document.getElementById('opencode-bg-capture-style')?.remove()"
                     await send("Runtime.evaluate", {"expression": hide_expr, "awaitPromise": True})
                     try:
                         screenshot_result = await send("Page.captureScreenshot", {
@@ -422,20 +422,20 @@ roots = [body];
                         clip_h = max(1.0, float(item.get("h") or 1))
                         hide_expr = (
                             "(() => {"
-                            "const id='clawith-item-bg-capture-style';"
+                            "const id='opencode-item-bg-capture-style';"
                             "document.getElementById(id)?.remove();"
                             "const style=document.createElement('style');"
                             "style.id=id;"
                             "style.textContent="
-                            f"'[data-clawith-slide-root=\"{slide_idx}\"] * {{ visibility: hidden !important; }} "
-                            f"[data-clawith-slide-root=\"{slide_idx}\"] [data-clawith-item-id=\"{item_id}\"] {{ visibility: visible !important; color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }} "
-                            f"[data-clawith-slide-root=\"{slide_idx}\"] [data-clawith-item-id=\"{item_id}\"]::before, "
-                            f"[data-clawith-slide-root=\"{slide_idx}\"] [data-clawith-item-id=\"{item_id}\"]::after {{ color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }} "
-                            f"[data-clawith-slide-root=\"{slide_idx}\"] [data-clawith-item-id=\"{item_id}\"] * {{ visibility: hidden !important; color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }}';"
+                            f"'[data-opencode-slide-root=\"{slide_idx}\"] * {{ visibility: hidden !important; }} "
+                            f"[data-opencode-slide-root=\"{slide_idx}\"] [data-opencode-item-id=\"{item_id}\"] {{ visibility: visible !important; color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }} "
+                            f"[data-opencode-slide-root=\"{slide_idx}\"] [data-opencode-item-id=\"{item_id}\"]::before, "
+                            f"[data-opencode-slide-root=\"{slide_idx}\"] [data-opencode-item-id=\"{item_id}\"]::after {{ color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }} "
+                            f"[data-opencode-slide-root=\"{slide_idx}\"] [data-opencode-item-id=\"{item_id}\"] * {{ visibility: hidden !important; color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }}';"
                             "document.head.appendChild(style);"
                             "})()"
                         )
-                        restore_expr = "document.getElementById('clawith-item-bg-capture-style')?.remove()"
+                        restore_expr = "document.getElementById('opencode-item-bg-capture-style')?.remove()"
                         await send("Runtime.evaluate", {"expression": hide_expr, "awaitPromise": True})
                         try:
                             screenshot_result = await send("Page.captureScreenshot", {

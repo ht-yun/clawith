@@ -11,7 +11,7 @@ import FileBrowser from '../components/FileBrowser';
 import ChannelConfig from '../components/ChannelConfig';
 import MarkdownRenderer from '../components/MarkdownRenderer';
 import PromptModal from '../components/PromptModal';
-import OpenClawSettings from './OpenClawSettings';
+import OpenCodeSettings from './OpenCodeSettings';
 import type { LivePreviewState } from '../components/AgentBayLivePanel';
 import AgentSidePanel, { SidePanelTab } from '../components/AgentSidePanel';
 import type { WorkspaceActivity, WorkspaceLiveDraft } from '../components/WorkspaceOperationPanel';
@@ -4269,13 +4269,13 @@ function AgentDetailInner() {
         return <div style={{ padding: '40px', color: 'var(--text-tertiary)' }}>{t('common.loading')}</div>;
     }
 
-    // Compute display status (including OpenClaw disconnected detection)
+    // Compute display status (including OpenCode disconnected detection)
     const computeStatusKey = () => {
         if (agent.status === 'error') return 'error';
         if (agent.status === 'creating') return 'creating';
         if (agent.status === 'stopped') return 'stopped';
-        if ((agent as any).agent_type === 'openclaw' && agent.status === 'running' && (agent as any).openclaw_last_seen) {
-            const elapsed = Date.now() - new Date((agent as any).openclaw_last_seen).getTime();
+        if ((agent as any).agent_type === 'opencode' && agent.status === 'running' && (agent as any).opencode_last_seen) {
+            const elapsed = Date.now() - new Date((agent as any).opencode_last_seen).getTime();
             if (elapsed > 60 * 60 * 1000) return 'disconnected';
         }
         return agent.status === 'running' ? 'running' : 'idle';
@@ -4657,7 +4657,7 @@ function AgentDetailInner() {
                                     <IconFolder size={16} stroke={1.7} />
                                     <span>{t('agent.tabs.workspace')}</span>
                                 </button>
-                                {(agent as any)?.agent_type !== 'openclaw' && (
+                                {(agent as any)?.agent_type !== 'opencode' && (
                                     <button
                                         className={`btn btn-ghost agent-top-action ${livePanelVisible && sidePanelTab === 'aware' ? 'active' : ''}`}
                                         onClick={() => togglePreviewPanel('aware')}
@@ -4675,7 +4675,7 @@ function AgentDetailInner() {
                                 </button>
                             </>
                         )}
-                        {activeTab === 'chat' && (agent as any)?.agent_type !== 'openclaw' && (
+                        {activeTab === 'chat' && (agent as any)?.agent_type !== 'opencode' && (
                             <>
                                 {agent.status === 'stopped' ? (
                                     <button className="btn btn-secondary" onClick={async () => { await agentApi.start(id!); queryClient.invalidateQueries({ queryKey: ['agent', id] }); }}>{t('agent.actions.start')}</button>
@@ -4695,8 +4695,8 @@ function AgentDetailInner() {
                         if ((agent as any)?.access_level === 'use') {
                             if (tab === 'settings' || tab === 'approvals') return false;
                         }
-                        // OpenClaw agents: only show status, chat, activityLog, settings
-                        if ((agent as any)?.agent_type === 'openclaw') {
+                        // OpenCode agents: only show status, chat, activityLog, settings
+                        if ((agent as any)?.agent_type === 'opencode') {
                             return ['status', 'relationships', 'chat', 'activityLog', 'settings'].includes(tab);
                         }
                         return true;
@@ -4751,7 +4751,7 @@ function AgentDetailInner() {
                                     </div>
                                 </div>
                                 {/* Native agent metrics */}
-                                {(agent as any)?.agent_type !== 'openclaw' && (<>
+                                {(agent as any)?.agent_type !== 'opencode' && (<>
                                     <div className="card">
                                         <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '6px' }}>{t('agent.status.llmCallsToday')}</div>
                                         <div style={{ fontSize: '22px', fontWeight: 600 }}>{((agent as any).llm_calls_today || 0).toLocaleString()}</div>
@@ -4783,16 +4783,16 @@ function AgentDetailInner() {
                                         </>
                                     )}
                                 </>)}
-                                {/* OpenClaw-specific metrics */}
-                                {(agent as any)?.agent_type === 'openclaw' && (
+                                {/* OpenCode-specific metrics */}
+                                {(agent as any)?.agent_type === 'opencode' && (
                                     <div className="card">
                                         <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '6px' }}>
-                                            {t('agent.openclaw.lastSeen')}
+                                            {t('agent.opencode.lastSeen')}
                                         </div>
                                         <div style={{ fontSize: '16px', fontWeight: 500 }}>
-                                            {(agent as any).openclaw_last_seen
-                                                ? new Date((agent as any).openclaw_last_seen).toLocaleString()
-                                                : t('agent.openclaw.notConnected')}
+                                            {(agent as any).opencode_last_seen
+                                                ? new Date((agent as any).opencode_last_seen).toLocaleString()
+                                                : t('agent.opencode.notConnected')}
                                         </div>
                                     </div>
                                 )}
@@ -4827,7 +4827,7 @@ function AgentDetailInner() {
                                         </div>
                                     </div>
                                 </div>
-                                {(agent as any)?.agent_type !== 'openclaw' ? (
+                                {(agent as any)?.agent_type !== 'opencode' ? (
                                     <div className="card">
                                         <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>{t('agent.modelConfig.title')}</h3>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -4848,29 +4848,31 @@ function AgentDetailInner() {
                                 ) : (
                                     <div className="card">
                                         <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
-                                            {t('agent.openclaw.connection')}
+                                            {t('agent.opencode.connection')}
                                         </h3>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>{t('agent.openclaw.type')}</span>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>{t('agent.opencode.type')}</span>
                                                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span style={{
                                                         fontSize: '10px', padding: '2px 6px', borderRadius: '4px',
                                                         background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 600,
-                                                    }}>OpenClaw</span>
+                                                    }}>OpenCode</span>
                                                     Lab
                                                 </span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>{t('agent.openclaw.lastSeen')}</span>
-                                                <span>{(agent as any).openclaw_last_seen
-                                                    ? new Date((agent as any).openclaw_last_seen).toLocaleString()
-                                                    : t('agent.openclaw.never')}
+                                                <span style={{ color: 'var(--text-tertiary)' }}>{t('agent.opencode.lastSeen')}</span>
+                                                <span>{(agent as any).opencode_last_seen
+                                                    ? new Date((agent as any).opencode_last_seen).toLocaleString()
+                                                    : t('agent.opencode.never')}
                                                 </span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>{t('agent.openclaw.model')}</span>
-                                                <span style={{ color: 'var(--text-secondary)' }}>{t('agent.openclaw.managedBy')}</span>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>
+                                                    {i18n.language?.startsWith('zh') ? '节点数量' : 'Nodes'}
+                                                </span>
+                                                <span>{(agent as any).node_count ?? (agent as any).has_api_key ? 1 : 0}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -6734,7 +6736,7 @@ function AgentDetailInner() {
                                 {/* Filter tabs */}
                                 <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
                                     {filterBtn('user', <><IconUser size={13} stroke={1.8} /> {t('agent.activityLog.userActions', 'User Actions')}</>)}
-                                    {(agent as any)?.agent_type !== 'openclaw' && (<>
+                                    {(agent as any)?.agent_type !== 'opencode' && (<>
                                         {filterBtn('backend', <><IconSettings size={13} stroke={1.8} /> {t('agent.activityLog.backendServices', 'Backend Services')}</>)}
                                         {(logFilter === 'backend' || logFilter === 'heartbeat' || logFilter === 'schedule' || logFilter === 'messages') && (
                                             <>
@@ -6930,12 +6932,12 @@ function AgentDetailInner() {
 
                 {/* ── Settings Tab ── */}
                 {
-                    activeTab === 'settings' && (agent as any)?.agent_type === 'openclaw' && (
-                        <OpenClawSettings agent={agent} agentId={id!} />
+                    activeTab === 'settings' && (agent as any)?.agent_type === 'opencode' && (
+                        <OpenCodeSettings agent={agent} agentId={id!} />
                     )
                 }
                 {
-                    activeTab === 'settings' && (agent as any)?.agent_type !== 'openclaw' && (() => {
+                    activeTab === 'settings' && (agent as any)?.agent_type !== 'opencode' && (() => {
                         // Check if form has unsaved changes
                         const hasChanges = (
                             settingsForm.primary_model_id !== (agent?.primary_model_id || '') ||
@@ -7016,7 +7018,7 @@ function AgentDetailInner() {
                                 </div>
 
                                 {/* Model Selection — native agents only */}
-                                {(agent as any)?.agent_type !== 'openclaw' && (
+                                {(agent as any)?.agent_type !== 'opencode' && (
                                     <div className="card" style={{ marginBottom: '12px' }}>
                                         <h4 style={{ marginBottom: '12px' }}>{t('agent.settings.modelConfig')}</h4>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -7069,7 +7071,7 @@ function AgentDetailInner() {
                                 )}
 
                                 {/* Context Window — native agents only */}
-                                {(agent as any)?.agent_type !== 'openclaw' && (<>
+                                {(agent as any)?.agent_type !== 'opencode' && (<>
                                     <div className="card" style={{ marginBottom: '12px' }}>
                                         <h4 style={{ marginBottom: '12px' }}>{t('agent.settings.conversationContext')}</h4>
                                         <div>
@@ -7140,7 +7142,7 @@ function AgentDetailInner() {
                                 </div>
 
                                 {/* Trigger Limits — native agents only */}
-                                {(agent as any)?.agent_type !== 'openclaw' && (() => {
+                                {(agent as any)?.agent_type !== 'opencode' && (() => {
                                     const isChinese = i18n.language?.startsWith('zh');
                                     return (
                                         <div className="card" style={{ marginBottom: '12px' }}>
@@ -7251,7 +7253,7 @@ function AgentDetailInner() {
                                 })()}
 
                                 {/* Autonomy Policy — native agents only */}
-                                {(agent as any)?.agent_type !== 'openclaw' && <div className="card" style={{ marginBottom: '12px' }}>
+                                {(agent as any)?.agent_type !== 'opencode' && <div className="card" style={{ marginBottom: '12px' }}>
                                     <h4 style={{ marginBottom: '4px' }}>{t('agent.settings.autonomy.title')}</h4>
                                     <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
                                         {t('agent.settings.autonomy.description')}

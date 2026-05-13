@@ -124,9 +124,24 @@ class AutonomyService:
         # Post-processing: execute the approved action
         execution_result = None
         if approval.status == "approved" and approval.details:
-            execution_result = await self._execute_approved_action(
-                approval.agent_id, approval.action_type, approval.details
-            )
+            if approval.action_type == "agent_access":
+                # Create AgentPermission for the requester
+                requested_by = approval.details.get("requested_by")
+                if requested_by:
+                    from app.models.agent import AgentPermission
+                    new_perm = AgentPermission(
+                        agent_id=approval.agent_id,
+                        scope_type="user",
+                        scope_id=uuid.UUID(requested_by),
+                        access_level="use"
+                    )
+                    db.add(new_perm)
+                    execution_result = f"Access granted to user {requested_by}"
+                    logger.info(f"Agent access granted: agent={approval.agent_id}, user={requested_by}")
+            else:
+                execution_result = await self._execute_approved_action(
+                    approval.agent_id, approval.action_type, approval.details
+                )
             logger.info(f"Post-approval execution for {approval.action_type}: {execution_result}")
 
         # Web notification to agent creator about the result

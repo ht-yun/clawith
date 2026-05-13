@@ -471,8 +471,8 @@ async def test_wake_agent_async_calls_trigger_daemon():
 
 
 @pytest.mark.asyncio
-async def test_openclaw_target_still_queues():
-    """OpenClaw targets should still use the gateway queue regardless of msg_type."""
+async def test_opencode_target_still_queues():
+    """OpenCode targets should still use the gateway queue regardless of msg_type."""
     from app.services.agent_tools import _send_message_to_agent
 
     from_agent_id = uuid.uuid4()
@@ -482,8 +482,8 @@ async def test_openclaw_target_still_queues():
     src_participant = _make_participant(ref_id=from_agent_id)
     tgt_participant = _make_participant(ref_id=target_id)
     source_agent = _make_agent(from_agent_id, name="Alice")
-    target_agent = _make_agent(target_id, name="OpenClawBot", agent_type="openclaw")
-    target_agent.openclaw_last_seen = datetime.now(UTC)
+    target_agent = _make_agent(target_id, name="OpenCodeBot", agent_type="opencode")
+    target_agent.opencode_last_seen = datetime.now(UTC)
 
     session = MagicMock()
     session.id = session_id
@@ -505,12 +505,12 @@ async def test_openclaw_target_still_queues():
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         result = await _send_message_to_agent(from_agent_id, {
-            "agent_name": "OpenClawBot",
+            "agent_name": "OpenCodeBot",
             "message": "Hello",
             "msg_type": "notify",
         })
 
-    assert "OpenClaw agent" in result
+    assert "OpenCode agent" in result
     assert "queued" in result
 
 

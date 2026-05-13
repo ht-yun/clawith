@@ -1,7 +1,11 @@
-"""Gateway API for OpenClaw agent communication.
+"""Gateway API for OpenCode agent communication.
 
-OpenClaw agents authenticate via X-Api-Key header and use these endpoints
+OpenCode agents authenticate via X-Api-Key header and use these endpoints
 to poll for messages, report results, send messages, and send heartbeat pings.
+
+Multi-node support: each OpenCode node has its own API key (stored in
+agent_nodes table). Authentication resolves the node first, then finds
+the parent Agent for LLM/routing/relationships.
 """
 
 import asyncio
@@ -16,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, async_session
 from app.models.agent import Agent
+from app.models.agent_node import AgentNode
 from app.models.gateway_message import GatewayMessage
 from app.models.user import User
 from app.schemas.schemas import (
@@ -23,7 +28,7 @@ from app.schemas.schemas import (
     GatewayHistoryItem, GatewayRelationshipItem, GatewaySendMessageRequest,
 )
 
-router = APIRouter(prefix="/gateway", tags=["gateway"])
+router = APIRouter(prefix="/opencode", tags=["opencode"])
 
 
 def _hash_key(key: str) -> str:
@@ -31,31 +36,62 @@ def _hash_key(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
-async def _get_agent_by_key(api_key: str, db: AsyncSession) -> Agent:
-    """Authenticate an OpenClaw agent by its API key."""
-    # First try plaintext (new behavior)
+async def _get_node_and_agent_by_key(api_key: str, db: AsyncSession) -> tuple[AgentNode, Agent]:
+    """Authenticate an OpenCode node by its API key. Returns (node, agent).
+
+    Tries:
+    1. AgentNode table by plaintext key (new multi-node behavior)
+    2. AgentNode table by hashed key
+    3. Agent table by plaintext key (legacy single-node behavior)
+    4. Agent table by hashed key (legacy fallback)
+    """
+    # 1. AgentNode — plaintext
+    result = await db.execute(
+        select(AgentNode).where(AgentNode.api_key_hash == api_key)
+    )
+    node = result.scalar_one_or_none()
+    if node:
+        agent_result = await db.execute(select(Agent).where(Agent.id == node.agent_id))
+        agent = agent_result.scalar_one_or_none()
+        if agent:
+            return node, agent
+
+    # 2. AgentNode — hashed
+    key_hash = _hash_key(api_key)
+    result = await db.execute(
+        select(AgentNode).where(AgentNode.api_key_hash == key_hash)
+    )
+    node = result.scalar_one_or_none()
+    if node:
+        agent_result = await db.execute(select(Agent).where(Agent.id == node.agent_id))
+        agent = agent_result.scalar_one_or_none()
+        if agent:
+            return node, agent
+
+    # 3. Legacy Agent-level — plaintext
     result = await db.execute(
         select(Agent).where(
             Agent.api_key_hash == api_key,
-            Agent.agent_type == "openclaw",
+            Agent.agent_type == "opencode",
         )
     )
     agent = result.scalar_one_or_none()
+    if agent:
+        # Create a synthetic node for legacy compatibility
+        return None, agent
 
-    # Fallback to hashed (legacy behavior)
-    if not agent:
-        key_hash = _hash_key(api_key)
-        result = await db.execute(
-            select(Agent).where(
-                Agent.api_key_hash == key_hash,
-                Agent.agent_type == "openclaw",
-            )
+    # 4. Legacy Agent-level — hashed
+    result = await db.execute(
+        select(Agent).where(
+            Agent.api_key_hash == key_hash,
+            Agent.agent_type == "opencode",
         )
-        agent = result.scalar_one_or_none()
+    )
+    agent = result.scalar_one_or_none()
+    if agent:
+        return None, agent
 
-    if not agent:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    return agent
+    raise HTTPException(status_code=401, detail="Invalid API key")
 
 
 # ─── Poll for messages ──────────────────────────────────
@@ -65,32 +101,36 @@ async def poll_messages(
     x_api_key: str = Header(..., alias="X-Api-Key"),
     db: AsyncSession = Depends(get_db),
 ):
-    """OpenClaw agent polls for pending messages.
+    """OpenCode node polls for pending messages.
 
     Returns all pending messages and marks them as delivered.
-    Also updates openclaw_last_seen for online status tracking.
+    Also updates last_seen for both the node and the parent agent.
     """
-    logger.info(f"[Gateway] poll called, key_prefix={x_api_key[:8]}...")
-    agent = await _get_agent_by_key(x_api_key, db)
+    logger.info(f"[OpenCode] poll called, key_prefix={x_api_key[:8]}...")
+    node, agent = await _get_node_and_agent_by_key(x_api_key, db)
 
-    # Update last seen
-    agent.openclaw_last_seen = datetime.now(timezone.utc)
+    # Update last seen on both node and agent
+    now_utc = datetime.now(timezone.utc)
+    if node:
+        node.last_seen = now_utc
+        node.status = "running"
+    agent.opencode_last_seen = now_utc
     agent.status = "running"
 
-    # Fetch pending messages
-    result = await db.execute(
-        select(GatewayMessage)
-        .where(GatewayMessage.agent_id == agent.id, GatewayMessage.status == "pending")
-        .order_by(GatewayMessage.created_at.asc())
+    # Fetch pending messages for this agent
+    # If we have a node, also try to match node-specific messages
+    query = select(GatewayMessage).where(
+        GatewayMessage.agent_id == agent.id,
+        GatewayMessage.status == "pending",
     )
+    result = await db.execute(query.order_by(GatewayMessage.created_at.asc()))
     messages = result.scalars().all()
 
     # Mark as delivered
-    now = datetime.now(timezone.utc)
     out = []
     for msg in messages:
         msg.status = "delivered"
-        msg.delivered_at = now
+        msg.delivered_at = now_utc
 
         # Resolve sender names
         sender_agent_name = None
@@ -114,7 +154,6 @@ async def poll_messages(
             )
             hist_msgs = list(reversed(hist_result.scalars().all()))
             for h in hist_msgs:
-                # Resolve sender name for each history message
                 h_sender = None
                 if h.role == "user" and h.user_id:
                     r = await db.execute(select(User.display_name).where(User.id == h.user_id))
@@ -194,11 +233,11 @@ async def report_result(
     x_api_key: str = Header(None, alias="X-Api-Key"),
     db: AsyncSession = Depends(get_db),
 ):
-    """OpenClaw agent reports the result of a processed message."""
+    """OpenCode node reports the result of a processed message."""
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing X-Api-Key header")
-    logger.info(f"[Gateway] report called, key_prefix={x_api_key[:8]}..., msg_id={body.message_id}")
-    agent = await _get_agent_by_key(x_api_key, db)
+    logger.info(f"[OpenCode] report called, key_prefix={x_api_key[:8]}..., msg_id={body.message_id}")
+    node, agent = await _get_node_and_agent_by_key(x_api_key, db)
 
     result = await db.execute(
         select(GatewayMessage).where(
@@ -214,18 +253,21 @@ async def report_result(
     msg.result = body.result
     msg.completed_at = datetime.now(timezone.utc)
 
-    # Update last seen
-    agent.openclaw_last_seen = datetime.now(timezone.utc)
+    # Update last seen on both node and agent
+    now_utc = datetime.now(timezone.utc)
+    if node:
+        node.last_seen = now_utc
+    agent.opencode_last_seen = now_utc
 
     # Save result as assistant chat message and push via WebSocket
-    # (works for both user-originated and agent-to-agent messages)
     if body.result and msg.conversation_id:
         from app.models.audit import ChatMessage
         from app.models.participant import Participant
-        # Look up OpenClaw agent's participant_id
-        part_r = await db.execute(select(Participant).where(Participant.type == "agent", Participant.ref_id == agent.id))
+        part_r = await db.execute(select(Participant).where(
+            Participant.type == "agent", Participant.ref_id == agent.id
+        ))
         participant = part_r.scalar_one_or_none()
-        
+
         assistant_msg = ChatMessage(
             agent_id=agent.id,
             user_id=msg.sender_user_id or getattr(agent, "creator_id", agent.id),
@@ -250,7 +292,7 @@ async def report_result(
         except Exception:
             pass  # User may have disconnected
 
-    # If the original message was from another agent (OpenClaw-to-OpenClaw),
+    # If the original message was from another agent (agent-to-agent),
     # write the reply back as a gateway_message for the sender agent to poll
     if body.result and msg.sender_agent_id:
         async with async_session() as reply_db:
@@ -258,6 +300,7 @@ async def report_result(
             gw_reply = GatewayMessage(
                 agent_id=msg.sender_agent_id,
                 sender_agent_id=agent.id,
+                sender_agent_node_id=node.id if node else None,
                 content=body.result,
                 status="pending",
                 conversation_id=conv_id,
@@ -276,12 +319,16 @@ async def heartbeat(
     x_api_key: str = Header(..., alias="X-Api-Key"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Pure heartbeat ping — keeps the OpenClaw agent marked as online."""
-    agent = await _get_agent_by_key(x_api_key, db)
-    agent.openclaw_last_seen = datetime.now(timezone.utc)
+    """Pure heartbeat ping — keeps the OpenCode node marked as online."""
+    node, agent = await _get_node_and_agent_by_key(x_api_key, db)
+    now_utc = datetime.now(timezone.utc)
+    if node:
+        node.last_seen = now_utc
+        node.status = "running"
+    agent.opencode_last_seen = now_utc
     agent.status = "running"
     await db.commit()
-    return {"status": "ok", "agent_id": str(agent.id)}
+    return {"status": "ok", "agent_id": str(agent.id), "node_id": str(node.id) if node else None}
 
 
 # ─── Send message ───────────────────────────────────────
@@ -292,6 +339,7 @@ _background_tasks: set = set()
 async def _send_to_agent_background(
     source_agent_id: str,
     source_agent_name: str,
+    source_node_id: str | None,
     target_agent_id: str,
     target_agent_name: str,
     target_primary_model_id: str,
@@ -300,7 +348,7 @@ async def _send_to_agent_background(
     content: str,
 ):
     """Background task: invoke target agent LLM and write reply to gateway_messages.
-    
+
     Accepts plain values (not ORM objects) to avoid stale session references
     since this runs after the request's DB session has closed.
     """
@@ -312,7 +360,6 @@ async def _send_to_agent_background(
         from app.models.chat_session import ChatSession
 
         async with async_session() as db:
-            # Load target agent's LLM model
             if not target_primary_model_id:
                 logger.warning(f"Target agent {target_agent_name} has no LLM model")
                 return
@@ -320,22 +367,18 @@ async def _send_to_agent_background(
             model = result.scalar_one_or_none()
             if not model:
                 return
-            # Skip if model is disabled by admin
             if not model.enabled:
                 logger.warning(f"Target agent {target_agent_name}'s model {model.model} is disabled, skipping")
                 return
 
             # Create or find a ChatSession for this agent pair
-            # Use deterministic UUID so the same pair always gets the same session
             import uuid as _uuid
             _ns = _uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-            # Sort IDs so session is the same regardless of who initiates
             session_agent_id = min(source_agent_id, target_agent_id, key=str)
             session_peer_id = max(source_agent_id, target_agent_id, key=str)
             session_uuid = _uuid.uuid5(_ns, f"{session_agent_id}_{session_peer_id}")
             conv_id = str(session_uuid)
 
-            # Find or create the ChatSession
             existing = await db.execute(
                 select(ChatSession).where(ChatSession.id == session_uuid)
             )
@@ -355,7 +398,6 @@ async def _send_to_agent_background(
                 await db.commit()
                 await db.refresh(session)
 
-                # Migrate any existing messages from old gw_agent_ format
                 old_conv_id = f"gw_agent_{source_agent_id}_{target_agent_id}"
                 from sqlalchemy import update
                 await db.execute(
@@ -365,13 +407,9 @@ async def _send_to_agent_background(
                 )
                 await db.commit()
 
-            # Update last_message_at
             from datetime import datetime, timezone
             session.last_message_at = datetime.now(timezone.utc)
 
-
-            # Agent-to-agent communication context (injected as prefix to user message
-            # since call_llm builds the full system prompt internally)
             agent_comm_alert = (
                 "--- Agent-to-Agent Communication Alert ---\n"
                 f"You are receiving a direct message from another digital employee ({source_agent_name}). "
@@ -380,7 +418,6 @@ async def _send_to_agent_background(
                 "If they are asking you to create or analyze a file, deliver the file using `send_file_to_agent` after writing it."
             )
 
-            # Load recent conversation history for context
             hist_result = await db.execute(
                 select(ChatMessage)
                 .where(ChatMessage.conversation_id == conv_id)
@@ -393,19 +430,20 @@ async def _send_to_agent_background(
             for h in hist_msgs:
                 messages.append({"role": h.role, "content": h.content or ""})
 
-            # Add the new message with agent communication context
             user_msg = f"{agent_comm_alert}\n\n[Message from agent: {source_agent_name}]\n{content}"
             messages.append({"role": "user", "content": user_msg})
 
             from app.models.participant import Participant
-            
-            # Lookup participants for both agents
-            src_part_r = await db.execute(select(Participant).where(Participant.type == "agent", Participant.ref_id == source_agent_id))
-            tgt_part_r = await db.execute(select(Participant).where(Participant.type == "agent", Participant.ref_id == target_agent_id))
+
+            src_part_r = await db.execute(select(Participant).where(
+                Participant.type == "agent", Participant.ref_id == source_agent_id
+            ))
+            tgt_part_r = await db.execute(select(Participant).where(
+                Participant.type == "agent", Participant.ref_id == target_agent_id
+            ))
             src_participant = src_part_r.scalar_one_or_none()
             tgt_participant = tgt_part_r.scalar_one_or_none()
-            
-            # Save user message to conversation
+
             db.add(ChatMessage(
                 agent_id=target_agent_id,
                 conversation_id=conv_id,
@@ -436,9 +474,11 @@ async def _send_to_agent_background(
         # Save assistant reply to conversation
         async with async_session() as db:
             from app.models.participant import Participant
-            tgt_part_r = await db.execute(select(Participant).where(Participant.type == "agent", Participant.ref_id == target_agent_id))
+            tgt_part_r = await db.execute(select(Participant).where(
+                Participant.type == "agent", Participant.ref_id == target_agent_id
+            ))
             tgt_participant = tgt_part_r.scalar_one_or_none()
-            
+
             db.add(ChatMessage(
                 agent_id=target_agent_id,
                 conversation_id=conv_id,
@@ -448,10 +488,11 @@ async def _send_to_agent_background(
                 participant_id=tgt_participant.id if tgt_participant else None,
             ))
 
-            # Write reply to gateway_messages for source (OpenClaw) to poll
+            # Write reply to gateway_messages for source to poll
             gw_reply = GatewayMessage(
                 agent_id=source_agent_id,
                 sender_agent_id=target_agent_id,
+                sender_agent_node_id=None,  # native agent has no node
                 content=final_reply,
                 status="pending",
                 conversation_id=conv_id,
@@ -473,14 +514,17 @@ async def send_message(
     x_api_key: str = Header(..., alias="X-Api-Key"),
     db: AsyncSession = Depends(get_db),
 ):
-    """OpenClaw agent sends a message to a person or another agent.
+    """OpenCode node sends a message to a person or another agent.
 
     Routes automatically based on target type:
     - Agent target: triggers LLM processing, reply returned via next poll
     - Human target: sends via available channel (feishu, etc.)
     """
-    agent = await _get_agent_by_key(x_api_key, db)
-    agent.openclaw_last_seen = datetime.now(timezone.utc)
+    node, agent = await _get_node_and_agent_by_key(x_api_key, db)
+    now_utc = datetime.now(timezone.utc)
+    if node:
+        node.last_seen = now_utc
+    agent.opencode_last_seen = now_utc
 
     target_name = body.target.strip()
     content = body.content.strip()
@@ -497,11 +541,12 @@ async def send_message(
     if target_agent and (not channel_hint or channel_hint == "agent"):
         conv_id = f"gw_agent_{agent.id}_{target_agent.id}"
 
-        if getattr(target_agent, 'agent_type', None) == 'openclaw':
-            # OpenClaw-to-OpenClaw: write to gateway_messages directly
+        if getattr(target_agent, 'agent_type', None) == 'opencode':
+            # OpenCode-to-OpenCode: write to gateway_messages directly
             gw_msg = GatewayMessage(
                 agent_id=target_agent.id,
                 sender_agent_id=agent.id,
+                sender_agent_node_id=node.id if node else None,
                 content=content,
                 status="pending",
                 conversation_id=conv_id,
@@ -516,9 +561,9 @@ async def send_message(
             }
         else:
             # Native agent: async LLM processing
-            # Extract plain values before session closes to avoid stale ORM references
             _src_id = str(agent.id)
             _src_name = agent.name
+            _src_node_id = str(node.id) if node else None
             _tgt_id = str(target_agent.id)
             _tgt_name = target_agent.name
             _tgt_model = str(target_agent.primary_model_id) if target_agent.primary_model_id else ""
@@ -526,7 +571,8 @@ async def send_message(
             _tgt_creator = str(target_agent.creator_id) if target_agent.creator_id else ""
             await db.commit()
             task = asyncio.create_task(_send_to_agent_background(
-                _src_id, _src_name, _tgt_id, _tgt_name,
+                _src_id, _src_name, _src_node_id,
+                _tgt_id, _tgt_name,
                 _tgt_model, _tgt_role, _tgt_creator, content,
             ))
             _background_tasks.add(task)
@@ -554,7 +600,6 @@ async def send_message(
         if r.member and r.member.name == target_name:
             target_member = r.member
             break
-    # Fuzzy match if exact match fails
     if not target_member:
         for r in rels:
             if r.member and target_name.lower() in r.member.name.lower():
@@ -579,7 +624,6 @@ async def send_message(
         )
         config = config_result.scalar_one_or_none()
         if not config:
-            # Try to find any feishu config in the org
             config_result = await db.execute(
                 select(ChannelConfig).where(ChannelConfig.channel == "feishu").limit(1)
             )
@@ -589,7 +633,6 @@ async def send_message(
             await db.commit()
             raise HTTPException(status_code=400, detail="No Feishu channel configured")
 
-        # Prefer user_id (tenant-stable, works across apps), fallback to open_id
         resp = None
         if target_member.external_id:
             resp = await feishu_service.send_message(
@@ -638,35 +681,34 @@ async def get_setup_guide(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the pre-filled Skill file and Heartbeat instruction for this agent."""
-    agent = await _get_agent_by_key(x_api_key, db)
+    node, agent = await _get_node_and_agent_by_key(x_api_key, db)
     if agent.id != agent_id:
         raise HTTPException(status_code=403, detail="Key does not match this agent")
 
-    # Note: we use the raw key from the header since the agent already authenticated
-    base_url = "https://try.clawith.ai"
+    base_url = "https://try.opencode.ai"
 
     skill_content = f"""---
-name: clawith_sync
-description: Sync with Clawith platform — check inbox, submit results, and send messages.
+name: opencode_sync
+description: Sync with OpenCode platform — check inbox, submit results, and send messages.
 ---
 
-# Clawith Sync
+# OpenCode Sync
 
 ## When to use
-Check for new messages from the Clawith platform during every heartbeat cycle.
+Check for new messages from the OpenCode platform during every heartbeat cycle.
 You can also proactively send messages to people and agents in your relationships.
 
 ## Instructions
 
 ### 1. Check inbox
 Make an HTTP GET request:
-- URL: {base_url}/api/gateway/poll
+- URL: {base_url}/api/opencode/poll
 - Header: X-Api-Key: {x_api_key}
 
 The response contains a `messages` array. Each message includes:
 - `id` — unique message ID (use this for reporting)
 - `content` — the message text
-- `sender_user_name` — name of the Clawith user who sent it
+- `sender_user_name` — name of the OpenCode user who sent it
 - `sender_user_id` — unique ID of the sender
 - `conversation_id` — the conversation this message belongs to
 - `history` — array of previous messages in this conversation for context
@@ -682,14 +724,14 @@ Different `sender_user_name` values mean different people — address them accor
 
 ### 2. Report results
 For each completed message, make an HTTP POST request:
-- URL: {base_url}/api/gateway/report
+- URL: {base_url}/api/opencode/report
 - Header: X-Api-Key: {x_api_key}
 - Header: Content-Type: application/json
 - Body: {{"message_id": "<id from the message>", "result": "<your response>"}}
 
 ### 3. Send a message to someone
 To proactively contact a person or agent, make an HTTP POST request:
-- URL: {base_url}/api/gateway/send-message
+- URL: {base_url}/api/opencode/send-message
 - Header: X-Api-Key: {x_api_key}
 - Header: Content-Type: application/json
 - Body: {{"target": "<name of person or agent>", "content": "<your message>"}}
@@ -698,10 +740,10 @@ The system auto-detects the best channel. For agents, the reply appears in your 
 For humans, the message is delivered via their available channel (e.g. Feishu).
 """
 
-    heartbeat_line = "- Check Clawith inbox using the clawith_sync skill and process any pending messages"
+    heartbeat_line = "- Check OpenCode inbox using the opencode_sync skill and process any pending messages"
 
     return {
-        "skill_filename": "clawith_sync.md",
+        "skill_filename": "opencode_sync.md",
         "skill_content": skill_content,
         "heartbeat_addition": heartbeat_line,
     }

@@ -24,7 +24,7 @@ class PlatformService:
         Priority:
         1. Environment variable (PUBLIC_BASE_URL) - from .env or docker
         2. Incoming request's base URL (browser address)
-        3. Hardcoded fallback (https://try.clawith.ai)
+        3. Hardcoded fallback (https://try.opencode.ai)
         """
         # 1. Try environment variable
         env_url = os.environ.get("PUBLIC_BASE_URL")
@@ -37,7 +37,7 @@ class PlatformService:
             return str(request.base_url).rstrip("/")
 
         # 3. Absolute fallback
-        return "https://try.clawith.ai"
+        return "https://try.opencode.ai"
 
 
     async def get_tenant_sso_base_url(self, db: AsyncSession, tenant, request: Request | None = None) -> str:
@@ -53,7 +53,7 @@ class PlatformService:
         base_url = await self.get_public_base_url(db, request)
         
         # Parse protocol and host
-        # Example: http://1.2.3.4:8000 or http://clawith.ai
+        # Example: http://1.2.3.4:8000 or http://opencode.ai
         parts = base_url.split("://")
         if len(parts) < 2:
             return base_url
@@ -75,7 +75,7 @@ class PlatformService:
             if host == "localhost":
                 return f"{protocol}://{host}{port}"
                 
-            # Generic logic: if host has a subdomain (e.g. try.clawith.ai), 
+            # Generic logic: if host has a subdomain (e.g. try.opencode.ai), 
             # we strip the first component to form a base for tenant subdomains.
             h_parts = host.split(".")
             if len(h_parts) > 2:

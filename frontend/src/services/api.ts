@@ -256,12 +256,32 @@ export const agentApi = {
     templates: () =>
         request<any[]>('/agents/templates'),
 
-    // OpenClaw gateway
+    // OpenCode gateway
     generateApiKey: (id: string) =>
         request<{ api_key: string; message: string }>(`/agents/${id}/api-key`, { method: 'POST' }),
 
-    gatewayMessages: (id: string) =>
+    opencodeMessages: (id: string) =>
         request<any[]>(`/agents/${id}/gateway-messages`),
+
+    // Agent nodes (multi-node OpenCode management)
+    listNodes: (agentId: string) =>
+        request<any[]>(`/agents/${agentId}/nodes`),
+
+    createNode: (agentId: string, data: { node_name: string }) =>
+        request<any>(`/agents/${agentId}/nodes`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    deleteNode: (agentId: string, nodeId: string) =>
+        request<{ status: string; message: string }>(`/agents/${agentId}/nodes/${nodeId}`, {
+            method: 'DELETE',
+        }),
+
+    regenerateNodeKey: (agentId: string, nodeId: string) =>
+        request<any>(`/agents/${agentId}/nodes/${nodeId}/regenerate-key`, {
+            method: 'POST',
+        }),
 };
 
 // ─── Tasks ────────────────────────────────────────────

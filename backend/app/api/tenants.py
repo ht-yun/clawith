@@ -405,17 +405,17 @@ async def resolve_tenant_by_domain(
 ):
     """Resolve a tenant by its sso_domain or subdomain slug.
 
-    sso_domain is stored as a full URL (e.g. "https://acme.clawith.ai" or "http://1.2.3.4:3009").
+    sso_domain is stored as a full URL (e.g. "https://acme.opencode.ai" or "http://1.2.3.4:3009").
     The incoming `domain` parameter is the host (without protocol).
 
     Lookup precedence:
     1. Exact match on tenant.sso_domain ending with the host (strips protocol)
-    2. Extract slug from "{slug}.clawith.ai" and match tenant.slug
+    2. Extract slug from "{slug}.opencode.ai" and match tenant.slug
     """
     tenant = None
 
     # 1. Match by stripping protocol from stored sso_domain
-    # sso_domain = "https://acme.clawith.ai" → compare against "acme.clawith.ai"
+    # sso_domain = "https://acme.opencode.ai" → compare against "acme.opencode.ai"
     for proto in ("https://", "http://"):
         result = await db.execute(
             select(Tenant).where(Tenant.sso_domain == f"{proto}{domain}")
@@ -438,7 +438,7 @@ async def resolve_tenant_by_domain(
     # 3. Fallback: extract slug from subdomain pattern
     if not tenant:
         import re
-        m = re.match(r"^([a-z0-9][a-z0-9\-]*[a-z0-9])\.clawith\.ai$", domain.lower())
+        m = re.match(r"^([a-z0-9][a-z0-9\-]*[a-z0-9])\.opencode\.ai$", domain.lower())
         if m:
             slug = m.group(1)
             result = await db.execute(select(Tenant).where(Tenant.slug == slug))

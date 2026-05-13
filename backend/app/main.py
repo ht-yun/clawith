@@ -1,4 +1,4 @@
-"""Clawith Backend — FastAPI Application Entry Point."""
+"""OpenCode Backend — FastAPI Application Entry Point."""
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -147,6 +147,7 @@ async def lifespan(app: FastAPI):
         import app.models.trigger        # noqa
         import app.models.notification   # noqa
         import app.models.gateway_message # noqa
+        import app.models.agent_node     # noqa
         import app.models.agent_credential  # noqa
         import app.models.okr            # noqa  OKR system tables
 
@@ -347,12 +348,14 @@ from app.api.atlassian import router as atlassian_router
 
 from app.api.webhooks import router as webhooks_router
 from app.api.notification import router as notification_router
-from app.api.gateway import router as gateway_router
+from app.api.opencode_gateway import router as opencode_gateway_router
 from app.api.admin import router as admin_router
 from app.api.pages import router as pages_router, public_router as pages_public_router
 from app.api.agent_credentials import router as credentials_router
 from app.api.agentbay_control import router as agentbay_control_router
 from app.api.okr import router as okr_router
+from app.api.marketplace import router as marketplace_router
+from app.api.agent_nodes import router as agent_nodes_router, admin_router as agent_nodes_admin_router
 
 app.include_router(auth_router, prefix=settings.API_PREFIX)
 app.include_router(agents_router, prefix=settings.API_PREFIX)
@@ -390,13 +393,16 @@ app.include_router(plaza_router)
 app.include_router(notification_router, prefix=settings.API_PREFIX)
 app.include_router(webhooks_router)  # Public endpoint, no API prefix
 app.include_router(ws_router)
-app.include_router(gateway_router, prefix=settings.API_PREFIX)
+app.include_router(opencode_gateway_router, prefix=settings.API_PREFIX)
 app.include_router(admin_router, prefix=settings.API_PREFIX)
 app.include_router(pages_router, prefix=settings.API_PREFIX)
 app.include_router(pages_public_router)  # Public endpoint for /p/{short_id}, no API prefix
 app.include_router(credentials_router, prefix=settings.API_PREFIX)
 app.include_router(agentbay_control_router, prefix=settings.API_PREFIX)
 app.include_router(okr_router)  # OKR — self-prefixed at /api/okr
+app.include_router(marketplace_router, prefix=settings.API_PREFIX)
+app.include_router(agent_nodes_router, prefix=settings.API_PREFIX)
+app.include_router(agent_nodes_admin_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
@@ -437,5 +443,5 @@ _version_cache = _load_version_info()
 
 @app.get("/api/version", tags=["system"])
 async def get_version():
-    """Return current Clawith version and commit hash."""
+    """Return current OpenCode version and commit hash."""
     return _version_cache

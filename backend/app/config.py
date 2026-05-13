@@ -29,7 +29,7 @@ def _default_agent_data_dir() -> str:
     """Use Docker path in containers, user-writable path on local hosts."""
     if _running_in_container():
         return "/data/agents"
-    return str(Path.home() / ".clawith" / "data" / "agents")
+    return str(Path.home() / ".opencode" / "data" / "agents")
 
 
 def _default_agent_template_dir() -> str:
@@ -62,14 +62,14 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # App
-    APP_NAME: str = "Clawith"
+    APP_NAME: str = "OpenCode"
     APP_VERSION: str = _read_version()
     DEBUG: bool = False
     SECRET_KEY: str = "change-me-in-production"
     API_PREFIX: str = "/api"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://clawith:clawith@localhost:5432/clawith"
+    DATABASE_URL: str = "postgresql+asyncpg://opencode:opencode@localhost:5432/opencode"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -87,9 +87,9 @@ class Settings(BaseSettings):
     AGENT_TEMPLATE_DIR: str = _default_agent_template_dir()
 
     # Docker (for Agent containers)
-    DOCKER_NETWORK: str = "clawith_network"
-    OPENCLAW_IMAGE: str = "openclaw:local"
-    OPENCLAW_GATEWAY_PORT: int = 18789
+    DOCKER_NETWORK: str = "opencode_network"
+    OPENCODE_IMAGE: str = "opencode:local"
+    OPENCODE_GATEWAY_PORT: int = 18789
 
     # Feishu OAuth
     FEISHU_APP_ID: str = ""

@@ -381,7 +381,7 @@ BUILTIN_TOOLS = [
     {
         "name": "send_platform_message",
         "display_name": "Platform Message",
-        "description": "Send a proactive message to a user on the Clawith first-party platform (web or app). The message appears in their platform chat history and is pushed in real-time if they are online.",
+        "description": "Send a proactive message to a user on the OpenCode first-party platform (web or app). The message appears in their platform chat history and is pushed in real-time if they are online.",
         "category": "communication",
         "icon": "🌐",
         "is_default": True,
@@ -937,7 +937,7 @@ BUILTIN_TOOLS = [
                 "file_path": {"type": "string", "description": "Workspace-relative path to image file"},
                 "url": {"type": "string", "description": "Public URL of image to upload"},
                 "file_name": {"type": "string", "description": "Custom filename (optional)"},
-                "folder": {"type": "string", "description": "CDN folder path (default /clawith)"},
+                "folder": {"type": "string", "description": "CDN folder path (default /opencode)"},
             },
         },
         "config": {"private_key": "", "url_endpoint": ""},

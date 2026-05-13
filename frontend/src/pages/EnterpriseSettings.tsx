@@ -429,6 +429,11 @@ function OrgTab({ tenant }: { tenant: any }) {
     const [savingProvider, setSavingProvider] = useState(false);
     const [saveProviderOk, setSaveProviderOk] = useState(false);
 
+    const [showAddDeptModal, setShowAddDeptModal] = useState(false);
+    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+    const [newDeptName, setNewDeptName] = useState('');
+    const [newMember, setNewMember] = useState({ name: '', email: '', title: '' });
+
     // Identity Providers state
     const [editingId, setEditingId] = useState<string | null>(null);
     const [useOAuth2Form, setUseOAuth2Form] = useState(false);
@@ -954,25 +959,17 @@ function OrgTab({ tenant }: { tenant: any }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div style={{ fontWeight: 500, fontSize: '14px' }}>{t('enterprise.org.orgBrowser', 'Organization Browser')}</div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn btn-secondary btn-sm" style={{ fontSize: '12px' }} onClick={() => setShowAddDeptModal(true)}>
+                            {isChinese ? '添加部门' : 'Add Dept'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" style={{ fontSize: '12px' }} onClick={() => setShowAddMemberModal(true)}>
+                            {isChinese ? '添加成员' : 'Add Member'}
+                        </button>
                         {['feishu', 'dingtalk', 'google_workspace'].includes(p.provider_type) && (
                             <button className="btn btn-secondary btn-sm" style={{ fontSize: '12px' }} onClick={() => triggerSync(p.id)} disabled={!!syncing}>
                                 {syncing === p.id ? 'Syncing...' : 'Sync Directory'}
                             </button>
-                        )}
-                        {syncResult && (
-                            <div style={{ padding: '6px 10px', borderRadius: '4px', fontSize: '11px', background: syncResult.error || (syncResult.errors && syncResult.errors.length > 0) ? 'rgba(255,100,0,0.1)' : 'rgba(0,200,0,0.1)' }}>
-                                {syncResult.error
-                                    ? `Error: ${syncResult.error}`
-                                    : `Sync complete: ${syncResult.departments || 0} depts, ${syncResult.members || 0} members synced.`}
-                                {syncResult.errors && syncResult.errors.length > 0 && (
-                                    <div style={{ marginTop: '4px', color: 'var(--color-warning, #f90)' }}>
-                                        {/* Show first error to help diagnose permission issues */}
-                                        {`Warning: ${syncResult.errors[0]}`}
-                                        {syncResult.errors.length > 1 && ` (+${syncResult.errors.length - 1} more)`}
-                                    </div>
-                                )}
-                            </div>
                         )}
                     </div>
                 </div>
@@ -993,13 +990,26 @@ function OrgTab({ tenant }: { tenant: any }) {
                             {members.map((m: any) => (
                                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
                                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600 }}>{m.name?.[0]}</div>
-                                    <div>
+                                    <div style={{ flex: 1 }}>
                                         <div style={{ fontWeight: 500, fontSize: '13px' }}>{m.name}</div>
                                         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                                             {m.provider_type && <span style={{ marginRight: '4px', padding: '1px 4px', borderRadius: '3px', background: 'var(--bg-secondary)', fontSize: '10px' }}>{m.provider_type}</span>}
                                             {m.title || '-'} · {m.department_path || m.department_id || '-'}
                                         </div>
                                     </div>
+                                    <button
+                                        className="btn btn-ghost btn-sm"
+                                        style={{ color: 'var(--error)', padding: '4px' }}
+                                        onClick={async () => {
+                                            const ok = await dialog.confirm(isChinese ? `确定要删除成员 ${m.name} 吗？` : `Delete member ${m.name}?`, { danger: true });
+                                            if (ok) {
+                                                await fetchJson(`/enterprise/org/members/${m.id}`, { method: 'DELETE' });
+                                                qc.invalidateQueries({ queryKey: ['org-members'] });
+                                            }
+                                        }}
+                                    >
+                                        <IconX size={14} />
+                                    </button>
                                 </div>
                             ))}
                             {members.length === 0 && <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-tertiary)' }}>{t('enterprise.org.noMembers')}</div>}
@@ -1082,6 +1092,68 @@ function OrgTab({ tenant }: { tenant: any }) {
                         );
                     })}
                 </div>
+
+                {/* Modals for Org Management */}
+                {showAddDeptModal && (
+                    <PromptModal
+                        title={isChinese ? '添加部门' : 'Add Department'}
+                        label={isChinese ? '部门名称' : 'Department Name'}
+                        value={newDeptName}
+                        onChange={setNewDeptName}
+                        onClose={() => setShowAddDeptModal(false)}
+                        onConfirm={async () => {
+                            await fetchJson('/enterprise/org/departments', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    name: newDeptName,
+                                    parent_id: selectedDept,
+                                    provider_id: editingId,
+                                    tenant_id: currentTenantId,
+                                })
+                            });
+                            setNewDeptName('');
+                            setShowAddDeptModal(false);
+                            qc.invalidateQueries({ queryKey: ['org-departments'] });
+                        }}
+                    />
+                )}
+
+                {showAddMemberModal && (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div className="card" style={{ width: '400px', padding: '24px' }}>
+                            <h3 style={{ margin: '0 0 16px' }}>{isChinese ? '添加成员' : 'Add Member'}</h3>
+                            <div className="form-group">
+                                <label className="form-label">{isChinese ? '姓名' : 'Name'}</label>
+                                <input className="form-input" value={newMember.name} onChange={e => setNewMember({ ...newMember, name: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{isChinese ? '邮箱' : 'Email'}</label>
+                                <input className="form-input" value={newMember.email} onChange={e => setNewMember({ ...newMember, email: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">{isChinese ? '职位' : 'Title'}</label>
+                                <input className="form-input" value={newMember.title} onChange={e => setNewMember({ ...newMember, title: e.target.value })} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                                <button className="btn btn-ghost" onClick={() => setShowAddMemberModal(false)}>{t('common.cancel')}</button>
+                                <button className="btn btn-primary" onClick={async () => {
+                                    await fetchJson('/enterprise/org/members', {
+                                        method: 'POST',
+                                        body: JSON.stringify({
+                                            ...newMember,
+                                            department_id: selectedDept,
+                                            provider_id: editingId,
+                                            tenant_id: currentTenantId,
+                                        })
+                                    });
+                                    setNewMember({ name: '', email: '', title: '' });
+                                    setShowAddMemberModal(false);
+                                    qc.invalidateQueries({ queryKey: ['org-members'] });
+                                }}>{t('common.confirm')}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
         </div>
@@ -1235,7 +1307,7 @@ function SkillsTab() {
         setInstalling(slug);
         try {
             const result = await skillApi.clawhub.install(slug);
-            const tierLabel = result.tier === 1 ? 'Tier 1 (Pure Prompt)' : result.tier === 2 ? 'Tier 2 (CLI/API)' : 'Tier 3 (OpenClaw Native)';
+            const tierLabel = result.tier === 1 ? 'Tier 1 (Pure Prompt)' : result.tier === 2 ? 'Tier 2 (CLI/API)' : 'Tier 3 (OpenCode Native)';
             showToast(`Installed "${result.name}" — ${tierLabel}, ${result.file_count} files`);
             setRefreshKey(k => k + 1);
             // Remove from search results
@@ -1279,7 +1351,7 @@ function SkillsTab() {
         const styles: Record<number, { bg: string; color: string; label: string }> = {
             1: { bg: 'rgba(52,199,89,0.12)', color: 'var(--success, #34c759)', label: 'Tier 1 · Pure Prompt' },
             2: { bg: 'rgba(255,159,10,0.12)', color: 'var(--warning, #ff9f0a)', label: 'Tier 2 · CLI/API' },
-            3: { bg: 'rgba(255,59,48,0.12)', color: 'var(--error, #ff3b30)', label: 'Tier 3 · OpenClaw Native' },
+            3: { bg: 'rgba(255,59,48,0.12)', color: 'var(--error, #ff3b30)', label: 'Tier 3 · OpenCode Native' },
         };
         const s = styles[tier] || styles[1];
         return (
@@ -3698,7 +3770,7 @@ export default function EnterpriseSettings() {
                                 className="form-input"
                                 value={companyIntro}
                                 onChange={e => setCompanyIntro(e.target.value)}
-                                placeholder={`# Company Name\nClawith\n\n# About\nOpenClaw\uD83E\uDD9E For Teams\nOpen Source \u00B7 Multi-OpenClaw Collaboration\n\nOpenClaw empowers individuals.\nClawith scales it to frontier organizations.`}
+                                placeholder={`# Company Name\nClawith\n\n# About\nOpenCode\uD83E\uDD9E For Teams\nOpen Source \u00B7 Multi-OpenCode Collaboration\n\nOpenCode empowers individuals.\nClawith scales it to frontier organizations.`}
                                 style={{
                                     minHeight: '200px', resize: 'vertical',
                                     fontFamily: 'var(--font-mono)', fontSize: '13px',

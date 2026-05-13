@@ -21,8 +21,11 @@ class GatewayMessage(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Target OpenClaw agent
     agent_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)
-    # Sender (one of these may be None)
+    # Target agent node (for multi-node routing)
+    agent_node_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_nodes.id"))
+    # Sender (one or more of these may be None)
     sender_agent_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("agents.id"))
+    sender_agent_node_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_nodes.id"))
     sender_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     # Chat session tracking for routing responses back
     conversation_id: Mapped[str | None] = mapped_column(String(100))

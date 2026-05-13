@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Clawith",
+    "name": "OpenCode",
     "tagline": "Enterprise Digital Employee Platform"
   },
   "login": {
@@ -8,7 +8,7 @@
       "badge": "Open Source · Multi-Agent Collaboration",
       "title": "Clawith",
       "subtitle": "Your Agent Company.",
-      "description": "OpenClaw empowers individuals.<br>Clawith scales it to frontier organizations.",
+      "description": "OpenCode empowers individuals.<br>Clawith scales it to frontier organizations.",
       "features": {
         "multiAgent": {
           "title": "Multi-Agent Crew",
@@ -774,7 +774,9 @@
       "monthlyTokenLimit": "Monthly Token Limit",
       "unlimited": "Unlimited",
       "namePlaceholder": "e.g. Smart Assistant",
-      "importFromJson": "Import from JSON"
+      "importFromJson": "Import from JSON",
+      "fallbackModel": "Fallback Model",
+      "fallbackModelHint": "(auto-switch when primary is unavailable)"
     },
     "step2": {
       "title": "Personality & Boundaries",
@@ -874,6 +876,12 @@
       "roleDescTooLong": "Role description cannot exceed 500 characters (current: {{count}})",
       "tokenLimitInvalid": "Please enter a valid positive integer",
       "modelRequired": "Please select a primary model"
+    },
+    "channelBindError": {
+      "feishu": "Failed to bind Feishu channel. Please reconfigure on the agent settings page.",
+      "slack": "Failed to bind Slack channel. Please reconfigure on the agent settings page.",
+      "discord": "Failed to bind Discord channel. Please reconfigure on the agent settings page.",
+      "wecom": "Failed to bind WeCom channel. Please reconfigure on the agent settings page."
     },
     "templates": {
       "Project Manager": "Project Manager",
@@ -1161,7 +1169,7 @@
         "reply_email": "Reply Email",
         "publish_page": "Publish Page",
         "list_published_pages": "List Published Pages",
-        "search_clawhub": "Search ClawHub",
+        "search_codehub": "Search CodeHub",
         "install_skill": "Install Skill",
         "agentbay_browser_navigate": "AgentBay: Browser Navigate",
         "agentbay_browser_screenshot": "AgentBay: Browser Screenshot",
@@ -1205,7 +1213,7 @@
         "list_triggers": "List all your active triggers with details.",
         "send_file_to_agent": "Send a file to a specific person or back to the current conversation.",
         "send_feishu_message": "Send a message to a Feishu user or group.",
-        "send_platform_message": "Send a proactive message to a user on the Clawith platform (web or app).",
+        "send_platform_message": "Send a proactive message to a user on the OpenCode platform (web or app).",
         "send_message_to_agent": "Send a message to a digital employee colleague and receive a reply.",
         "web_search": "Search the internet using a configurable search engine.",
         "jina_search": "Search the internet using Jina AI.",
@@ -1227,7 +1235,7 @@
         "reply_email": "Reply to an email by its Message-ID.",
         "publish_page": "Publish an HTML file from workspace as a public page.",
         "list_published_pages": "List all pages published by this agent.",
-        "search_clawhub": "Search the ClawHub skill registry for skills matching a query.",
+        "search_codehub": "Search the CodeHub skill registry for skills matching a query.",
         "install_skill": "Install a skill into this agent's workspace.",
         "agentbay_browser_navigate": "[ENV: Browser] Navigate to a URL in the AgentBay headless browser environment.",
         "agentbay_browser_screenshot": "[ENV: Browser] Take a screenshot of the current page in the headless browser.",
@@ -1560,20 +1568,29 @@
     "expandSidebar": "Expand Sidebar",
     "deleting": "Deleting..."
   },
-  "openclaw": {
-    "created": "OpenClaw Agent Created",
-    "createdDesc2": "Your OpenClaw agent has been registered. Copy the instruction below and send it to your OpenClaw agent to complete the setup.",
+  "opencode": {
+    "created": "OpenCode Agent created",
+    "createdDesc2": "Your OpenCode Agent is registered. Copy the command below and send it to your OpenCode Agent to complete setup.",
     "setupInstruction": "Setup Instruction",
-    "setupInstructionDesc": "Copy and send this to your OpenClaw agent. It will configure itself automatically.",
-    "keyNote": "This key is already embedded in the instruction above. Save it separately if needed for manual configuration.",
+    "setupInstructionDesc": "Copy and send to your OpenCode Agent, it will automatically complete the configuration.",
+    "keyNote": "API Key is embedded in the command above. Save it separately for manual config.",
     "goToAgent": "Go to Agent Page",
-    "lastSeen": "Last Seen",
+    "nativeTitle": "Platform Hosted",
+    "nativeDesc": "Full agent running on Clawith platform",
+    "opencodeTitle": "Link OpenCode",
+    "opencodeDesc": "Connect your existing OpenCode agent",
+    "basicTitle": "Link OpenCode Agent",
+    "basicDesc": "Name your OpenCode Agent and add a description. Models and skills are configured on your OpenCode instance.",
+    "namePlaceholder": "e.g., My OpenCode Bot",
+    "rolePlaceholder": "e.g., Assistant running on my Mac",
+    "createBtn": "Link Agent",
+    "lastSeen": "Last seen",
     "notConnected": "Not connected",
-    "connection": "OpenClaw Connection",
+    "connection": "OpenCode Connection",
     "type": "Type",
     "never": "Never",
     "model": "Model",
-    "managedBy": "Managed by OpenClaw"
+    "managedBy": "Managed by OpenCode instance"
   },
   "channelGuide": {
     "setupGuide": "Setup Guide",

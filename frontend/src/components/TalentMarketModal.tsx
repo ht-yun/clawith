@@ -41,7 +41,7 @@ const FEATURED_TEMPLATE_NAMES = new Set<string>([
     'Market Intel Aggregator',
 ]);
 
-type TabId = 'popular' | 'software-development' | 'marketing' | 'office' | 'trading';
+type TabId = 'market' | 'popular' | 'software-development' | 'marketing' | 'office' | 'trading';
 
 export default function TalentMarketModal({ open, onClose }: Props) {
     const { t, i18n } = useTranslation();
@@ -50,8 +50,9 @@ export default function TalentMarketModal({ open, onClose }: Props) {
     // Chosen template → hands off to PostHireSettingsModal. The market modal
     // stays mounted behind so the user can cancel and pick someone else.
     const [pendingTemplate, setPendingTemplate] = useState<Template | null>(null);
-    const [activeTab, setActiveTab] = useState<TabId>('popular');
+    const [activeTab, setActiveTab] = useState<TabId>('market');
     const [searchQuery, setSearchQuery] = useState('');
+    const [requestingAgentId, setRequestingAgentId] = useState<string | null>(null);
 
     const { data: templates = [], isLoading } = useQuery({
         queryKey: ['agent-templates'],
@@ -60,6 +61,7 @@ export default function TalentMarketModal({ open, onClose }: Props) {
     });
 
     const tabs: Array<{ id: TabId; label: string }> = [
+        { id: 'market', label: t('talentMarket.tabMarket', isChinese ? '企业市场' : 'Enterprise Market') },
         { id: 'popular', label: t('talentMarket.tabPopular', isChinese ? '热门推荐' : 'Popular') },
         { id: 'software-development', label: t('talentMarket.tabSWE', isChinese ? '软件开发' : 'Software Development') },
         { id: 'marketing', label: t('talentMarket.tabMarketing', isChinese ? '营销' : 'Marketing') },
@@ -78,9 +80,17 @@ export default function TalentMarketModal({ open, onClose }: Props) {
 
     if (!open) return null;
 
-    const builtins: Template[] = templates.filter((t: Template) => t.is_builtin);
+    const { data: marketplaceAgents = [] } = useQuery({
+        queryKey: ['marketplace-agents'],
+        queryFn: () => fetch('/api/marketplace/agents', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(r => r.json()),
+        enabled: open && activeTab === 'market',
+    });
+
     const trimmedQuery = searchQuery.trim().toLowerCase();
     const isSearching = trimmedQuery.length > 0;
+    const builtins = templates.filter((t: any) => t.is_builtin);
 
     // When searching, ignore the active tab and show matches across all
     // categories. Otherwise filter by the selected tab. Search matches against
@@ -103,7 +113,34 @@ export default function TalentMarketModal({ open, onClose }: Props) {
         })
         : activeTab === 'popular'
             ? builtins.filter((tpl) => FEATURED_TEMPLATE_NAMES.has(tpl.name))
-            : builtins.filter((tpl) => tpl.category === activeTab);
+            : activeTab === 'market'
+                ? [] // Marketplace agents handled separately below
+                : builtins.filter((tpl) => tpl.category === activeTab);
+
+    const handleMarketplaceRequest = async (agentId: string) => {
+        setRequestingAgentId(agentId);
+        try {
+            const res = await fetch(`/api/marketplace/agents/${agentId}/request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                // Refresh list or show success
+                window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: isChinese ? '申请已发送' : 'Request sent' } }));
+                onClose();
+            } else {
+                throw new Error(data.detail || 'Failed to request access');
+            }
+        } catch (e: any) {
+            window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'error', message: e.message } }));
+        } finally {
+            setRequestingAgentId(null);
+        }
+    };
 
     return (
         <div
@@ -259,7 +296,23 @@ export default function TalentMarketModal({ open, onClose }: Props) {
                                 : t('talentMarket.empty', isChinese ? '这个分类下还没有模板' : 'No templates in this category yet')}
                         </div>
                     )}
-                    {!isLoading && visibleTemplates.map((tpl: Template) => (
+                    {!isLoading && activeTab === 'market' && marketplaceAgents.map((agent: any) => (
+                        <TemplateCard
+                            key={agent.id}
+                            tpl={{
+                                id: agent.id,
+                                name: agent.name,
+                                description: agent.role_description || '',
+                                icon: agent.icon || 'AI',
+                                category: 'Enterprise',
+                                is_builtin: false,
+                            }}
+                            hiring={requestingAgentId === agent.id}
+                            isChinese={isChinese}
+                            onHire={() => handleMarketplaceRequest(agent.id)}
+                        />
+                    ))}
+                    {!isLoading && activeTab !== 'market' && visibleTemplates.map((tpl: Template) => (
                         <TemplateCard
                             key={tpl.id}
                             tpl={tpl}
@@ -429,8 +482,8 @@ function CustomCard({ onClick }: { onClick: () => void }) {
                 <IconWorld size={13} stroke={1.5} style={{ flexShrink: 0 }} />
                 <span>
                     {t('talentMarket.externalAgentHint', isChinese
-                        ? '支持 Native、OpenClaw 等外部 Agent'
-                        : 'Supports native, OpenClaw, and external agents')}
+                        ? '支持 Native、OpenCode 等外部 Agent'
+                        : 'Supports native, OpenCode, and external agents')}
                 </span>
             </div>
             <button

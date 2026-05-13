@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Clawith",
+    "name": "OpenCode",
     "tagline": "企业数字员工平台"
   },
   "login": {
@@ -8,7 +8,7 @@
       "badge": "开源 · 多智能体协作",
       "title": "Clawith",
       "subtitle": "Your Agent Company.",
-      "description": "OpenClaw 赋能个人。<br>Clawith 将其扩展到前沿组织。",
+      "description": "OpenCode 赋能个人。<br>Clawith 将其扩展到前沿组织。",
       "features": {
         "multiAgent": {
           "title": "多智能体团队",
@@ -856,7 +856,9 @@
       "monthlyTokenLimit": "每月 Token 上限",
       "unlimited": "不限制",
       "namePlaceholder": "例：小智",
-      "importFromJson": "从 JSON 导入"
+      "importFromJson": "从 JSON 导入",
+      "fallbackModel": "备用模型",
+      "fallbackModelHint": "（主模型不可用时自动切换）"
     },
     "templates": {
       "Project Manager": "项目经理",
@@ -989,6 +991,12 @@
       "roleDescTooLong": "角色描述不能超过 500 个字符（当前 {{count}} 字符）",
       "tokenLimitInvalid": "请输入有效的正整数",
       "modelRequired": "请选择一个主模型"
+    },
+    "channelBindError": {
+      "feishu": "飞书渠道绑定失败，请在数字员工设置页面重新配置。",
+      "slack": "Slack 渠道绑定失败，请在数字员工设置页面重新配置。",
+      "discord": "Discord 渠道绑定失败，请在数字员工设置页面重新配置。",
+      "wecom": "企业微信渠道绑定失败，请在数字员工设置页面重新配置。"
     }
   },
   "task": {
@@ -1275,7 +1283,7 @@
         "reply_email": "回复邮件",
         "publish_page": "发布页面",
         "list_published_pages": "列出已发布页面",
-        "search_clawhub": "搜索 ClawHub",
+        "search_codehub": "搜索 CodeHub",
         "install_skill": "安装技能",
         "agentbay_browser_navigate": "AgentBay: 浏览器访问",
         "agentbay_browser_screenshot": "AgentBay: 浏览器截图",
@@ -1341,7 +1349,7 @@
         "reply_email": "按 Message-ID 回复邮件。",
         "publish_page": "将工作区中的 HTML 文件发布为公共页面。",
         "list_published_pages": "列出此数字员工发布的所有页面。",
-        "search_clawhub": "在 ClawHub 技能注册表中搜索匹配查询的技能。",
+        "search_codehub": "在 CodeHub 技能注册表中搜索匹配查询的技能。",
         "install_skill": "将技能安装到此数字员工的工作区。",
         "agentbay_browser_navigate": "[ENV: Browser] 在 AgentBay 无头浏览器环境中访问指定网址。",
         "agentbay_browser_screenshot": "[ENV: Browser] 对无头浏览器当前页面进行截图。",
@@ -1725,29 +1733,29 @@
     "createBtn": "创建",
     "contactAdmin": "请联系平台管理员获取邀请码。"
   },
-  "openclaw": {
-    "created": "OpenClaw Agent 已创建",
-    "createdDesc2": "您的 OpenClaw Agent 已注册。复制以下指令并发送给您的 OpenClaw Agent 完成配置。",
+  "opencode": {
+    "created": "OpenCode Agent 已创建",
+    "createdDesc2": "您的 OpenCode Agent 已注册。复制以下指令并发送给您的 OpenCode Agent 完成配置。",
     "setupInstruction": "配置指令",
-    "setupInstructionDesc": "复制并发送给您的 OpenClaw Agent，它将自动完成配置。",
+    "setupInstructionDesc": "复制并发送给您的 OpenCode Agent，它将自动完成配置。",
     "keyNote": "API Key 已嵌入在上方指令中。如需手动配置可单独保存。",
     "goToAgent": "前往 Agent 页面",
     "nativeTitle": "平台托管",
     "nativeDesc": "在 Clawith 平台上运行的完整 Agent",
-    "openclawTitle": "连接 OpenClaw",
-    "openclawDesc": "连接你现有的 OpenClaw Agent",
-    "basicTitle": "连接 OpenClaw Agent",
-    "basicDesc": "为你的 OpenClaw Agent 命名并添加描述。LLM 模型、人格和技能在你的 OpenClaw 实例上配置。",
-    "namePlaceholder": "例如：我的 OpenClaw Bot",
+    "opencodeTitle": "连接 OpenCode",
+    "opencodeDesc": "连接你现有的 OpenCode Agent",
+    "basicTitle": "连接 OpenCode Agent",
+    "basicDesc": "为你的 OpenCode Agent 命名并添加描述。LLM 模型、人格和技能在你的 OpenCode 实例上配置。",
+    "namePlaceholder": "例如：我的 OpenCode Bot",
     "rolePlaceholder": "例如：在我的 Mac 上运行的个人助手",
     "createBtn": "连接 Agent",
     "lastSeen": "最近连接",
     "notConnected": "尚未连接",
-    "connection": "OpenClaw 连接",
+    "connection": "OpenCode 连接",
     "type": "类型",
     "never": "从未",
     "model": "模型",
-    "managedBy": "由 OpenClaw 实例管理"
+    "managedBy": "由 OpenCode 实例管理"
   },
   "channelGuide": {
     "setupGuide": "配置说明",

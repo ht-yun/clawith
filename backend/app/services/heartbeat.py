@@ -435,7 +435,7 @@ async def _execute_heartbeat(agent_id: uuid.UUID):
                 detail={"reply": reply[:500]},
             )
 
-        logger.info(f"💓 Heartbeat for {agent_name}: {'OK' if is_ok else reply[:60]}")
+        logger.info(f"Heartbeat for {agent_name}: {'OK' if is_ok else reply[:60]}")
 
     except Exception as e:
         logger.exception(f"Heartbeat error for agent {agent_id}: {e}")
@@ -493,7 +493,7 @@ async def _heartbeat_tick():
                     continue
 
                 # Fire heartbeat
-                logger.info(f"💓 Triggering heartbeat for {agent.name}")
+                logger.info(f"Triggering heartbeat for {agent.name}")
                 await write_audit_log("heartbeat_fire", {"agent_name": agent.name}, agent_id=agent.id)
                 asyncio.create_task(_execute_heartbeat(agent.id))
                 triggered += 1
@@ -508,7 +508,7 @@ async def _heartbeat_tick():
 
 async def start_heartbeat():
     """Start the background heartbeat loop. Call from FastAPI startup."""
-    logger.info("💓 Agent heartbeat service started (60s tick)")
+    logger.info("Agent heartbeat service started (60s tick)")
     while True:
         await _heartbeat_tick()
         await asyncio.sleep(60)

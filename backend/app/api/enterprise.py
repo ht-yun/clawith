@@ -101,7 +101,10 @@ async def test_llm_model(
     if not api_key and data.model_id:
         api_key = await _load_llm_test_api_key(data.model_id)
     if not api_key:
-        return {"success": False, "latency_ms": 0, "error": "API Key is required"}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"success": False, "latency_ms": 0, "error": "API Key is required"},
+        )
 
     start = time.time()
     try:
@@ -121,7 +124,10 @@ async def test_llm_model(
         return {"success": True, "latency_ms": latency_ms, "reply": reply}
     except Exception as e:
         latency_ms = int((time.time() - start) * 1000)
-        return {"success": False, "latency_ms": latency_ms, "error": str(e)[:500]}
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"success": False, "latency_ms": latency_ms, "error": str(e)[:500]},
+        )
 
 
 

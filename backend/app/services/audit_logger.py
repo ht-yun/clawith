@@ -13,6 +13,11 @@ from sqlalchemy import text
 from app.database import async_session
 
 
+def _db_uuid(value: uuid.UUID | None) -> str | None:
+    """Convert UUIDs to database-safe scalar values for raw SQL inserts."""
+    return str(value) if value is not None else None
+
+
 class AuditAction(str, Enum):
     """Standard audit action types."""
 
@@ -200,11 +205,11 @@ async def _write_log(
                     "VALUES (:id, :action, :details, :agent_id, :user_id, :created_at)"
                 ),
                 {
-                    "id": uuid.uuid4(),
+                    "id": _db_uuid(uuid.uuid4()),
                     "action": action,
                     "details": json.dumps(full_details, ensure_ascii=False, default=str),
-                    "agent_id": agent_id,
-                    "user_id": user_id,
+                    "agent_id": _db_uuid(agent_id),
+                    "user_id": _db_uuid(user_id),
                     "created_at": datetime.now(timezone.utc),
                 },
             )

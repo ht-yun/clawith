@@ -1110,7 +1110,7 @@ async def wake_agent_with_context(agent_id: uuid.UUID, message_context: str, *, 
 
 async def start_trigger_daemon():
     """Start the background trigger daemon loop. Called from FastAPI startup."""
-    logger.info("⚡ Trigger Daemon started (15s tick, heartbeat every ~60s)")
+    logger.info("Trigger Daemon started (15s tick, heartbeat every ~60s)")
     _heartbeat_counter = 0
     while True:
         try:

@@ -27,6 +27,7 @@ import {
     IconTerminal2,
     IconTools,
     IconUser,
+    IconX,
 } from '@tabler/icons-react';
 // API helpers for enterprise endpoints
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -304,9 +305,10 @@ function SsoChannelSection({ idpType, existingProvider, tenant, t }: {
 
 // ─── Org & Identity Tab ─────────────────────────────
 function OrgTab({ tenant }: { tenant: any }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const dialog = useDialog();
     const qc = useQueryClient();
+    const isChinese = i18n.language?.startsWith('zh');
 
 
 
@@ -1096,16 +1098,15 @@ function OrgTab({ tenant }: { tenant: any }) {
                 {/* Modals for Org Management */}
                 {showAddDeptModal && (
                     <PromptModal
+                        open={showAddDeptModal}
                         title={isChinese ? '添加部门' : 'Add Department'}
-                        label={isChinese ? '部门名称' : 'Department Name'}
-                        value={newDeptName}
-                        onChange={setNewDeptName}
-                        onClose={() => setShowAddDeptModal(false)}
-                        onConfirm={async () => {
+                        placeholder={isChinese ? '部门名称' : 'Department Name'}
+                        onCancel={() => setShowAddDeptModal(false)}
+                        onConfirm={async (value) => {
                             await fetchJson('/enterprise/org/departments', {
                                 method: 'POST',
                                 body: JSON.stringify({
-                                    name: newDeptName,
+                                    name: value,
                                     parent_id: selectedDept,
                                     provider_id: editingId,
                                     tenant_id: currentTenantId,
@@ -3475,6 +3476,11 @@ export default function EnterpriseSettings() {
                                             } catch {
                                                 throw new Error(raw || `HTTP ${res.status}`);
                                             }
+                                            if (!res.ok) {
+                                                const detail = result?.detail;
+                                                const message = detail?.error || detail?.detail || result?.error || raw || `HTTP ${res.status}`;
+                                                throw new Error(String(message));
+                                            }
                                             if (result.success) {
                                                 if (btn) { btn.textContent = t('enterprise.llm.testSuccess', { latency: result.latency_ms }); btn.style.color = 'var(--success)'; }
                                                 setTimeout(() => { if (btn) { btn.textContent = origText; btn.style.color = ''; } }, 3000);
@@ -3590,6 +3596,11 @@ export default function EnterpriseSettings() {
                                                             result = raw ? JSON.parse(raw) : {};
                                                         } catch {
                                                             throw new Error(raw || `HTTP ${res.status}`);
+                                                        }
+                                                        if (!res.ok) {
+                                                            const detail = result?.detail;
+                                                            const message = detail?.error || detail?.detail || result?.error || raw || `HTTP ${res.status}`;
+                                                            throw new Error(String(message));
                                                         }
                                                         if (result.success) {
                                                             if (btn) { btn.textContent = t('enterprise.llm.testSuccess', { latency: result.latency_ms }); btn.style.color = 'var(--success)'; }

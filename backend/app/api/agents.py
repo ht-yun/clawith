@@ -778,10 +778,12 @@ async def delete_agent(
         "daily_token_usage",
     ]
 
+    agent_id_param = str(agent_id)
+
     for table in cleanup_tables:
         try:
             async with db.begin_nested():
-                await db.execute(text(f"DELETE FROM {table} WHERE agent_id = :aid"), {"aid": agent_id})
+                await db.execute(text(f"DELETE FROM {table} WHERE agent_id = :aid"), {"aid": agent_id_param})
         except Exception:
             pass
 
@@ -796,7 +798,7 @@ async def delete_agent(
     for sql in secondary_fk_cleanups:
         try:
             async with db.begin_nested():
-                await db.execute(text(sql), {"aid": agent_id})
+                await db.execute(text(sql), {"aid": agent_id_param})
         except Exception:
             pass
 
@@ -805,7 +807,7 @@ async def delete_agent(
         async with db.begin_nested():
             await db.execute(
                 text("DELETE FROM agent_agent_relationships WHERE agent_id = :aid OR target_agent_id = :aid"),
-                {"aid": agent_id},
+                {"aid": agent_id_param},
             )
     except Exception:
         pass
@@ -813,7 +815,7 @@ async def delete_agent(
     # Also clear plaza posts by this agent
     try:
         async with db.begin_nested():
-            await db.execute(text("DELETE FROM plaza_posts WHERE author_id = :aid"), {"aid": str(agent_id)})
+            await db.execute(text("DELETE FROM plaza_posts WHERE author_id = :aid"), {"aid": agent_id_param})
     except Exception:
         pass
 
@@ -822,7 +824,7 @@ async def delete_agent(
         async with db.begin_nested():
             await db.execute(
                 text("DELETE FROM participants WHERE type = 'agent' AND ref_id = :aid"),
-                {"aid": agent_id},
+                {"aid": agent_id_param},
             )
     except Exception:
         pass

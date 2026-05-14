@@ -730,7 +730,7 @@ async def delete_tenant(
     # Helper shorthand
     agent_sub = "SELECT id FROM agents WHERE tenant_id = :tid"
 
-    # 1. Approval requests (has agent_id FK to agents — must delete before agents)
+    # 1. Approval requests (has agent_id FK to agents – must delete before agents)
     await db.execute(text(
         f"DELETE FROM approval_requests WHERE agent_id IN ({agent_sub})"
     ), {"tid": tid})

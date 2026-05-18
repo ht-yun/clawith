@@ -285,6 +285,60 @@ export const agentApi = {
 };
 
 // ─── Tasks ────────────────────────────────────────────
+export const agentTrainingApi = {
+    listMemoryPortraits: (agentId: string) =>
+        request<any[]>(`/agents/${agentId}/training/memory-portrait`),
+
+    createMemoryPortrait: (agentId: string, data: any) =>
+        request<any>(`/agents/${agentId}/training/memory-portrait`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    updateMemoryPortrait: (agentId: string, itemId: string, data: any) =>
+        request<any>(`/agents/${agentId}/training/memory-portrait/${itemId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    deleteMemoryPortrait: (agentId: string, itemId: string) =>
+        request<any>(`/agents/${agentId}/training/memory-portrait/${itemId}`, {
+            method: 'DELETE',
+        }),
+
+    distillMemoryPortraits: (agentId: string, data: { chat_session_id: string; max_items?: number }) =>
+        request<any[]>(`/agents/${agentId}/training/memory-portrait/distill`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    listGoldenQuestions: (agentId: string) =>
+        request<any[]>(`/agents/${agentId}/training/golden-questions`),
+
+    createGoldenQuestion: (agentId: string, data: any) =>
+        request<any>(`/agents/${agentId}/training/golden-questions`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    updateGoldenQuestion: (agentId: string, itemId: string, data: any) =>
+        request<any>(`/agents/${agentId}/training/golden-questions/${itemId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    deleteGoldenQuestion: (agentId: string, itemId: string) =>
+        request<any>(`/agents/${agentId}/training/golden-questions/${itemId}`, {
+            method: 'DELETE',
+        }),
+
+    distillGoldenQuestions: (agentId: string, data: { chat_session_id: string; max_items?: number }) =>
+        request<any[]>(`/agents/${agentId}/training/golden-questions/distill`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+};
+
 export const taskApi = {
     list: (agentId: string, status?: string, type?: string) => {
         const params = new URLSearchParams();

@@ -24,6 +24,7 @@ from app.models.activity_log import AgentActivityLog  # noqa: F401
 from app.models.org import OrgDepartment, OrgMember, AgentRelationship, AgentAgentRelationship  # noqa: F401
 from app.models.system_settings import SystemSetting  # noqa: F401
 from app.models.invitation_code import InvitationCode  # noqa: F401
+from app.models.training_asset import AgentMemoryPortrait, AgentGoldenQuestion  # noqa: F401
 
 
 async def seed():

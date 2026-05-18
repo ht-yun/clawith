@@ -16,6 +16,7 @@ import type { LivePreviewState } from '../components/AgentBayLivePanel';
 import AgentSidePanel, { SidePanelTab } from '../components/AgentSidePanel';
 import type { WorkspaceActivity, WorkspaceLiveDraft } from '../components/WorkspaceOperationPanel';
 import AgentCredentials from '../components/AgentCredentials';
+import AgentTrainingAssetsPanel from '../components/AgentTrainingAssetsPanel';
 import { activityApi, agentApi, channelApi, enterpriseApi, fileApi, scheduleApi, skillApi, taskApi, tenantApi, triggerApi, uploadFileWithProgress } from '../services/api';
 import ModelSwitcher from '../components/ModelSwitcher';
 import { useAppStore } from '../stores';
@@ -5625,6 +5626,12 @@ function AgentDetailInner() {
                                     </p>
                                     <FileBrowser api={adapter} singleFile="HEARTBEAT.md" title="" features={{ edit: (agent as any)?.access_level !== 'use' }} />
                                 </div>
+
+                                <AgentTrainingAssetsPanel
+                                    agentId={id!}
+                                    canManage={(agent as any)?.access_level === 'manage'}
+                                    canViewAllSessions={canViewAllAgentChatSessions}
+                                />
                             </div>
                         );
                     })()

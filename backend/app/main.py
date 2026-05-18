@@ -150,6 +150,7 @@ async def lifespan(app: FastAPI):
         import app.models.agent_node     # noqa
         import app.models.agent_credential  # noqa
         import app.models.okr            # noqa  OKR system tables
+        import app.models.training_asset  # noqa
 
         import app.models.identity       # noqa
         async with engine.begin() as conn:
@@ -356,9 +357,11 @@ from app.api.agentbay_control import router as agentbay_control_router
 from app.api.okr import router as okr_router
 from app.api.marketplace import router as marketplace_router
 from app.api.agent_nodes import router as agent_nodes_router, admin_router as agent_nodes_admin_router
+from app.api.agent_training import router as agent_training_router
 
 app.include_router(auth_router, prefix=settings.API_PREFIX)
 app.include_router(agents_router, prefix=settings.API_PREFIX)
+app.include_router(agent_training_router, prefix=settings.API_PREFIX)
 app.include_router(tasks_router, prefix=settings.API_PREFIX)
 app.include_router(files_router, prefix=settings.API_PREFIX)
 app.include_router(feishu_router, prefix=settings.API_PREFIX)

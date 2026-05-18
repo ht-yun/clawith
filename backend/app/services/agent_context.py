@@ -564,6 +564,17 @@ If no search or webpage-reading tool is available, say that web lookup is not en
     if memory and memory not in ("_这里记录重要的信息和学到的知识。_", "_Record important information and knowledge here._"):
         dynamic_parts.append(f"\n## Memory\n{memory}")
 
+    try:
+        from app.api.agent_training import load_training_assets_for_context
+
+        portrait_text, golden_text = await load_training_assets_for_context(agent_id)
+        if portrait_text:
+            dynamic_parts.append(f"\n## Training Memory Portrait\n{portrait_text}")
+        if golden_text:
+            dynamic_parts.append(f"\n## Golden Clarifying Questions\n{golden_text}")
+    except Exception:
+        pass
+
     # --- Focus (working memory) ---
     focus = (
         _read_file_safe(ws_root / "focus.md", 3000)
